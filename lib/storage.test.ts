@@ -3,7 +3,15 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { attachSummary, findSessionFile, loadLatestSummary, loadProfile, saveProfile, saveSession } from "./storage";
+import {
+  attachSummary,
+  findSessionFile,
+  loadLatestSummary,
+  loadProfile,
+  resolveSessionFile,
+  saveProfile,
+  saveSession,
+} from "./storage";
 import type { SavedSession, SessionConfig, SessionSummary } from "./types";
 
 const config: SessionConfig = {
@@ -180,6 +188,22 @@ describe("attachSummary / findSessionFile (write-then-attach flow)", () => {
     const savedB = JSON.parse(await readFile(fileB, "utf8")) as SavedSession;
     expect(savedA.transcript[0].text).toBe("session A transcript");
     expect(savedB.transcript[0].text).toBe("session B transcript");
+  });
+
+  it("resolves a path that POST /api/sessions really returned, and refuses anything else", async () => {
+    const draft = makeSession("2026-03-01T09:20:00.000Z", "resolve me");
+    const file = await saveSession({ ...draft, summary: null });
+
+    // The happy path: the exact path the save returned.
+    expect(await resolveSessionFile(file)).toBe(file);
+
+    // Anything that is not a .json file sitting directly in data/sessions is
+    // refused, so a client-supplied path can never make us read or write
+    // outside the sessions directory.
+    expect(await resolveSessionFile(path.join(tempDir, "profiles", "testkid.json"))).toBeNull();
+    expect(await resolveSessionFile(path.join(tempDir, "sessions", "..", "..", "etc", "passwd"))).toBeNull();
+    expect(await resolveSessionFile("/etc/hosts")).toBeNull();
+    expect(await resolveSessionFile(path.join(tempDir, "sessions", "does-not-exist.json"))).toBeNull();
   });
 
   it("does not create a second file when a summary is retried for the same session", async () => {

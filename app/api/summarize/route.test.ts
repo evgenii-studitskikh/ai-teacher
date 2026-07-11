@@ -10,10 +10,11 @@
 // instead. Neither test needs ANTHROPIC_API_KEY or a live Claude call: both
 // failures happen before the route ever gets there.
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { POST } from "./route";
+import { POST as saveSessionRoute } from "../sessions/route";
 import type { SavedSession, SessionConfig } from "../../../lib/types";
 
 const config: SessionConfig = {
@@ -43,13 +44,17 @@ function postRequest(body: string): Request {
 }
 
 let tempDir: string;
+let realAnthropicKey: string | undefined;
 
 beforeEach(async () => {
   tempDir = await mkdtemp(path.join(os.tmpdir(), "ai-teacher-route-test-"));
+  realAnthropicKey = process.env.ANTHROPIC_API_KEY;
 });
 
 afterEach(async () => {
   delete process.env.DATA_DIR;
+  if (realAnthropicKey === undefined) delete process.env.ANTHROPIC_API_KEY;
+  else process.env.ANTHROPIC_API_KEY = realAnthropicKey;
   await rm(tempDir, { recursive: true, force: true });
 });
 
@@ -81,5 +86,78 @@ describe("POST /api/summarize — failure paths always return JSON", () => {
     const data = (await res.json()) as { summary: unknown; error?: string };
     expect(data.summary).toBeNull();
     expect(typeof data.error).toBe("string");
+  });
+});
+
+// The invariant the whole end-of-session flow rests on: **the transcript is on
+// disk before Claude is ever called, and a failed summary never costs the
+// session.** These tests make a summary failure happen deterministically, with
+// no network and no API key — ANTHROPIC_API_KEY unset makes the route bail out
+// at exactly the point where it is about to call Claude — and then check the
+// disk.
+describe("save-before-summarize: a failed summary never costs the transcript", () => {
+  const sessionsIn = (dir: string) => path.join(dir, "sessions");
+
+  function saveRequest(body: string): Request {
+    return new Request("http://localhost/api/sessions", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body,
+    });
+  }
+
+  it("leaves the transcript on disk when the summary step fails (no filePath given)", async () => {
+    process.env.DATA_DIR = tempDir;
+    delete process.env.ANTHROPIC_API_KEY;
+
+    const res = await POST(postRequest(JSON.stringify(validSession)));
+    expect(res.status).toBe(500);
+    expect(((await res.json()) as { summary: unknown }).summary).toBeNull();
+
+    const files = await readdir(sessionsIn(tempDir));
+    expect(files).toHaveLength(1);
+    const saved = JSON.parse(await readFile(path.join(sessionsIn(tempDir), files[0]), "utf8")) as SavedSession;
+    expect(saved.transcript).toEqual(validSession.transcript);
+    expect(saved.summary).toBeNull();
+  });
+
+  it("attaches to the file POST /api/sessions already wrote, and never creates a second one", async () => {
+    process.env.DATA_DIR = tempDir;
+    delete process.env.ANTHROPIC_API_KEY;
+
+    // 1. The real flow: the client saves the transcript first and gets a path.
+    const saveRes = await saveSessionRoute(saveRequest(JSON.stringify(validSession)));
+    const { filePath } = (await saveRes.json()) as { filePath: string };
+    expect(await readdir(sessionsIn(tempDir))).toHaveLength(1);
+
+    // 2. Summarize, handing back that path. Claude fails (no key)...
+    const first = await POST(postRequest(JSON.stringify({ ...validSession, filePath })));
+    expect(first.status).toBe(500);
+
+    // 3. ...and the parent hits Retry. Neither request may fork a second
+    //    record: the transcript stays exactly where it was written.
+    const retry = await POST(postRequest(JSON.stringify({ ...validSession, filePath })));
+    expect(retry.status).toBe(500);
+
+    const files = await readdir(sessionsIn(tempDir));
+    expect(files).toEqual([path.basename(filePath)]);
+    const saved = JSON.parse(await readFile(filePath, "utf8")) as SavedSession;
+    expect(saved.transcript).toEqual(validSession.transcript);
+    expect(saved.summary).toBeNull();
+  });
+
+  it("ignores a bogus client-supplied filePath rather than writing outside data/sessions", async () => {
+    process.env.DATA_DIR = tempDir;
+    delete process.env.ANTHROPIC_API_KEY;
+
+    const escape = path.join(tempDir, "..", "escaped.json");
+    const res = await POST(postRequest(JSON.stringify({ ...validSession, filePath: escape })));
+    expect(res.status).toBe(500); // the summary still fails, as designed
+
+    // The transcript was written where it belongs — in data/sessions — and the
+    // path the client made up was not touched.
+    const files = await readdir(sessionsIn(tempDir));
+    expect(files).toHaveLength(1);
+    await expect(readFile(escape, "utf8")).rejects.toThrow();
   });
 });

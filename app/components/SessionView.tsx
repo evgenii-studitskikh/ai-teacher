@@ -3,7 +3,8 @@
 import { ConversationProvider, useConversation } from "@elevenlabs/react";
 import type { Language } from "@elevenlabs/client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { buildFirstMessage, buildPrompt } from "../../lib/prompt";
+import { OVERRIDES_DISABLED_MESSAGE, firstMessageMatches } from "../../lib/overrides";
+import { buildFirstMessage, buildPrompt, buildWindDownMessage } from "../../lib/prompt";
 import type { SavedSession, SessionConfig, SessionSummary, TranscriptTurn } from "../../lib/types";
 
 type Props = {
@@ -28,10 +29,20 @@ function SessionInner({ config, onDone }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [transcript, setTranscript] = useState<TranscriptTurn[]>([]);
   const [secondsLeft, setSecondsLeft] = useState(config.minutes * 60);
+  // Set when the override canary trips (see onMessage). Non-null means the
+  // session was aborted because the agent was not running our configuration.
+  const [overridesDisabled, setOverridesDisabled] = useState<string | null>(null);
 
   const startedAt = useRef<number>(0);
   const windDownSent = useRef(false);
   const finished = useRef(false);
+  // The override canary only has one shot: the *first* agent turn is the one
+  // ElevenLabs takes verbatim from the `firstMessage` override. Everything
+  // after it is model-generated and proves nothing.
+  const firstAgentTurnSeen = useRef(false);
+  // Lets onMessage hang up (see the canary there) without naming the
+  // `conversation` object it is itself being passed into.
+  const endSessionRef = useRef<(() => void) | null>(null);
   // Mirrors `transcript` so `finish()` can read a value that's always
   // up to date, even if it runs in the same batch as the state update for
   // the final turn (see `finish` below for why this matters).
@@ -82,6 +93,47 @@ function SessionInner({ config, onDone }: Props) {
     // The brief guessed `source` ("ai"/"user"); the real, non-deprecated
     // field is `role` with values "agent" | "user", which is what we use.
     onMessage: (msg) => {
+      // ---- Override canary -------------------------------------------------
+      // The system prompt (with every guardrail in it), the first message, the
+      // language and the voice are all sent as ElevenLabs *overrides*. If the
+      // agent's dashboard Security settings don't have overrides enabled,
+      // ElevenLabs silently ignores all four and the child ends up talking to
+      // the raw default agent: no guardrails, no "ask your mum or dad", wrong
+      // voice, wrong persona — and, until now, no error anywhere.
+      //
+      // The first agent turn is the observable that tells us which world we're
+      // in: with overrides on it is exactly `buildFirstMessage(config)`; with
+      // them off it's the dashboard's own greeting, which contains neither the
+      // child's name nor the agent's. The comparison is deliberately tolerant
+      // (see lib/overrides.ts) so that punctuation, casing and TTS text
+      // normalization cannot trip it.
+      //
+      // On a mismatch we fail closed: end the call at once and hold the parent
+      // on this screen with an actionable error, rather than handing the child
+      // to an unguarded LLM. The aborted session is intentionally *not* passed
+      // to onDone — it is one meaningless turn, and advancing to the summary
+      // screen would bury the very message the parent needs to read.
+      if (msg.role === "agent" && !firstAgentTurnSeen.current) {
+        firstAgentTurnSeen.current = true;
+        const ours = firstMessageMatches(buildFirstMessage(config), msg.message, [
+          config.childName,
+          config.agentName,
+        ]);
+        if (!ours) {
+          finished.current = true; // makes finish() (via onDisconnect) a no-op
+          setOverridesDisabled(OVERRIDES_DISABLED_MESSAGE);
+          // Hang up through a ref, not through the `conversation` object this
+          // very call is initializing: referring to it from inside its own
+          // callback makes the React compiler treat this closure as
+          // render-phase code (it then flags the pre-existing `Date.now()`
+          // below as an impure render call). The ref is filled in by the
+          // effect right underneath and is always current by the time a
+          // message can arrive — a message can only arrive once connected.
+          endSessionRef.current?.();
+          return;
+        }
+      }
+
       const turn: TranscriptTurn = {
         role: msg.role === "agent" ? "agent" : "child",
         text: msg.message,
@@ -118,8 +170,13 @@ function SessionInner({ config, onDone }: Props) {
     },
   });
 
+  useEffect(() => {
+    endSessionRef.current = () => conversation.endSession();
+  }, [conversation.endSession, conversation]);
+
   const start = useCallback(async () => {
     setError(null);
+    setOverridesDisabled(null);
     try {
       await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch {
@@ -134,6 +191,7 @@ function SessionInner({ config, onDone }: Props) {
     const { signedUrl } = await res.json();
     startedAt.current = Date.now();
     finished.current = false;
+    firstAgentTurnSeen.current = false;
     transcriptRef.current = [];
     setTranscript([]);
     setSecondsLeft(config.minutes * 60);
@@ -141,16 +199,13 @@ function SessionInner({ config, onDone }: Props) {
     // Confirmed: startSession() returns void, not a Promise (it fires the
     // connection off internally and reports success/failure through the
     // onConnect/onError callbacks above) — so it is not awaited here.
-    conversation.startSession({
-      signedUrl,
-      dynamicVariables: {
-        agent_name: config.agentName,
-        child_name: config.childName,
-        child_age: config.childAge,
-        goal: config.goal,
-        minutes: config.minutes,
-      },
-    });
+    //
+    // No `dynamicVariables` here: nothing consumes them. buildPrompt/
+    // buildFirstMessage interpolate the config into the strings we send as
+    // overrides, so there are no `{{placeholders}}` left for ElevenLabs to
+    // fill in. Sending them anyway was dead weight that read as if the agent
+    // depended on them.
+    conversation.startSession({ signedUrl });
   }, [conversation, config]);
 
   // The clock. The model has no sense of time — at 80% elapsed (20%
@@ -181,9 +236,10 @@ function SessionInner({ config, onDone }: Props) {
       if (!windDownSent.current && remainingMs <= totalMs * 0.2) {
         windDownSent.current = true;
         try {
-          conversation.sendContextualUpdate(
-            "Time is nearly up. Praise one specific thing she did today, then say a warm goodbye. Do not start anything new.",
-          );
+          // The wind-down text lives in lib/prompt.ts alongside the system
+          // prompt: it steers what the agent says out loud to the child, so it
+          // is held to the same rule — the child's name, never a pronoun.
+          conversation.sendContextualUpdate(buildWindDownMessage(config));
         } catch {
           // getConversation() (inside the SDK's sendContextualUpdate) throws
           // "No active conversation" if the conversation ref is already
@@ -210,7 +266,7 @@ function SessionInner({ config, onDone }: Props) {
     // so depending on them (rather than the whole `conversation` object,
     // which is a fresh literal every render) keeps this effect from
     // tearing down and restarting its interval on unrelated re-renders.
-  }, [conversation.status, conversation.sendContextualUpdate, conversation.endSession, config.minutes]);
+  }, [conversation.status, conversation.sendContextualUpdate, conversation.endSession, config]);
 
   if (!ready) return <p>Getting ready…</p>;
 
@@ -223,6 +279,16 @@ function SessionInner({ config, onDone }: Props) {
         Status: {conversation.status} · {mins}:{secs} left
       </p>
       {error && <p style={{ color: "crimson" }}>{error}</p>}
+
+      {overridesDisabled && (
+        <section
+          role="alert"
+          style={{ border: "2px solid crimson", padding: 12, margin: "12px 0", color: "crimson" }}
+        >
+          <h2 style={{ marginTop: 0 }}>Session stopped — overrides are not enabled</h2>
+          <p>{overridesDisabled}</p>
+        </section>
+      )}
 
       {conversation.status === "connected" ? (
         <button onClick={() => conversation.endSession()}>End session</button>

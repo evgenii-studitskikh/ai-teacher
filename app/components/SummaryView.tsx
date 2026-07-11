@@ -5,12 +5,18 @@ import type { SavedSession, SessionSummary } from "../../lib/types";
 
 type Props = {
   session: Omit<SavedSession, "summary">;
+  // The path the transcript was written to. Its presence is the proof that the
+  // save succeeded: EndView does not mount this component until POST
+  // /api/sessions has come back with a real path. That is what licenses every
+  // "the transcript is saved" line below — this component can no longer be
+  // reached in a state where that sentence is false.
+  filePath: string;
   onFinish: () => void;
 };
 
 type SummarizeResponse = { summary?: SessionSummary | null; error?: string };
 
-export default function SummaryView({ session, onFinish }: Props) {
+export default function SummaryView({ session, filePath, onFinish }: Props) {
   const [summary, setSummary] = useState<SessionSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -22,7 +28,10 @@ export default function SummaryView({ session, onFinish }: Props) {
       const res = await fetch("/api/summarize", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(session),
+        // `filePath` tells the route exactly which record to attach the
+        // summary to, so a retry updates that same file instead of matching by
+        // content or (worse) writing a second one.
+        body: JSON.stringify({ ...session, filePath }),
       });
       // The route always returns JSON, even on failure (see route.ts) — but
       // a dev-server restart, a proxy, or some other layer in front of it
@@ -32,21 +41,20 @@ export default function SummaryView({ session, onFinish }: Props) {
       // below and strand the parent on "Writing the summary…" forever.
       const data: SummarizeResponse = await res.json().catch(() => ({}) as SummarizeResponse);
       if (data.summary) setSummary(data.summary);
-      else setError(data.error ?? "Could not write the summary. The transcript is saved.");
+      else setError(data.error ?? "Could not write the summary.");
     } catch {
       // fetch() itself rejected — offline, dev server restarted mid-request,
-      // etc. The transcript was already written to disk before this
-      // component even mounted (SessionView's onDone only fires after the
-      // session ends, and the summarize route writes-then-summarizes), so
-      // it's safe to say so here.
-      setError("Could not reach the server. The transcript is saved.");
+      // etc. Unlike before, this genuinely costs nothing but the summary: the
+      // transcript was written by POST /api/sessions before this component was
+      // ever mounted, and `filePath` above is the receipt for it.
+      setError("Could not reach the server.");
     } finally {
       // Always runs, on every path (success, JSON error payload, unparsable
       // body, or a rejected fetch) — this is what guarantees the parent
       // never gets stuck on the loading state.
       setLoading(false);
     }
-  }, [session]);
+  }, [session, filePath]);
 
   // Fire the summarize request exactly once per mount. Next.js App Router
   // runs React StrictMode in dev, which double-invokes mount effects
@@ -54,18 +62,7 @@ export default function SummaryView({ session, onFinish }: Props) {
   // instance — refs survive that, state set up via useState does too, but
   // nothing before this guard did, so both passes used to call summarize().
   // That meant two Opus calls per session (billed twice) and a client-side
-  // race recreating the duplicate-session-file bug: both requests could run
-  // findSessionFile before either request's saveSession landed, so both saw
-  // no existing file and both created one.
-  //
-  // `firedRef` is a plain useRef flag checked and set synchronously at the
-  // top of the effect, before summarize() is ever called. The first effect
-  // invocation sets it to true and fires; StrictMode's extra invocation
-  // (and any real re-render that leaves `session` referentially unstable)
-  // sees it already true and does nothing. The ref is not reset by
-  // StrictMode's fake unmount/remount because it's the same fiber — this is
-  // the standard fix for this exact class of bug, not a hack specific to
-  // this component.
+  // race recreating the duplicate-session-file bug.
   //
   // Retry is unaffected: the button below calls `summarize` directly, not
   // through this effect, so the guard never gates a user-initiated retry.
@@ -82,7 +79,11 @@ export default function SummaryView({ session, onFinish }: Props) {
     return (
       <section>
         <p style={{ color: "crimson" }}>{error}</p>
-        <p>The transcript is saved either way.</p>
+        {/* True by construction: see the `filePath` prop above. */}
+        <p>
+          The transcript is saved — <code>{filePath}</code>. Only the summary is missing, and the
+          next session will simply start without one.
+        </p>
         <button onClick={summarize}>Retry</button>
         <button onClick={onFinish}>Done</button>
       </section>

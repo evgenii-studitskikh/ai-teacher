@@ -142,6 +142,27 @@ export async function findSessionFile(session: Omit<SavedSession, "summary">): P
 // already be *this* session's record (found via saveSession's return value
 // or findSessionFile), so there is no collision to guard against, only an
 // update.
+// Validates a session file path handed back to us by the client (the path
+// POST /api/sessions returned when it wrote the transcript). Passing the known
+// path through is cheaper and more exact than re-deriving it from the session
+// *content* with findSessionFile — but it means a path now arrives from
+// outside, so it is checked before use: it must resolve to a `.json` file
+// directly inside the sessions directory, and it must exist. Anything else
+// (traversal, a path in another directory, a file that has since been deleted)
+// returns null, and the caller falls back to the content match. There is no
+// path a client can supply that makes us read or write outside data/sessions.
+export async function resolveSessionFile(filePath: string): Promise<string | null> {
+  const full = path.resolve(filePath);
+  if (path.dirname(full) !== sessionsDir()) return null;
+  if (path.extname(full) !== ".json") return null;
+  try {
+    await readFile(full, "utf8");
+    return full;
+  } catch {
+    return null;
+  }
+}
+
 export async function attachSummary(filePath: string, summary: SessionSummary): Promise<void> {
   const raw = await readFile(filePath, "utf8");
   const saved = JSON.parse(raw) as SavedSession;

@@ -49,10 +49,14 @@ export async function loadProfile(childName: string): Promise<SessionConfig | nu
   }
 }
 
+function sessionBase(session: Pick<SavedSession, "config" | "endedAt">): string {
+  const stamp = session.endedAt.replace(/[:.]/g, "-");
+  return `${slug(session.config.childName)}--${stamp}`;
+}
+
 export async function saveSession(session: SavedSession): Promise<string> {
   await mkdir(sessionsDir(), { recursive: true });
-  const stamp = session.endedAt.replace(/[:.]/g, "-");
-  const base = `${slug(session.config.childName)}--${stamp}`;
+  const base = sessionBase(session);
   const data = JSON.stringify(session, null, 2);
 
   // Two sessions can share an endedAt millisecond. Never let the second
@@ -77,6 +81,72 @@ export async function saveSession(session: SavedSession): Promise<string> {
       throw err;
     }
   }
+}
+
+// Deep structural equality over plain JSON-shaped values (objects, arrays,
+// primitives) — everything a SavedSession is made of. Used to tell "this is
+// the same session, saved again" apart from "this is a different session
+// that happens to share the same childName+endedAt millisecond".
+function deepEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (typeof a !== "object" || typeof b !== "object" || a === null || b === null) return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  if (Array.isArray(a) && Array.isArray(b)) {
+    return a.length === b.length && a.every((v, i) => deepEqual(v, b[i]));
+  }
+  const aObj = a as Record<string, unknown>;
+  const bObj = b as Record<string, unknown>;
+  const aKeys = Object.keys(aObj);
+  const bKeys = Object.keys(bObj);
+  return aKeys.length === bKeys.length && aKeys.every((k) => k in bObj && deepEqual(aObj[k], bObj[k]));
+}
+
+function sameSession(a: Omit<SavedSession, "summary">, b: SavedSession): boolean {
+  return (
+    a.startedAt === b.startedAt &&
+    a.endedAt === b.endedAt &&
+    deepEqual(a.config, b.config) &&
+    deepEqual(a.transcript, b.transcript)
+  );
+}
+
+// Finds the file (if any) that already holds this exact session — same
+// config, transcript, startedAt and endedAt — regardless of what its
+// `summary` field currently is. This is what lets a retried summarize
+// request find and update the record it already wrote instead of creating a
+// sibling `-1.json`: the match is on session *content*, not on a client-held
+// id (the client has none — see app/api/summarize/route.ts), so it works
+// across separate HTTP requests. It also naturally avoids matching a
+// genuinely different session that happens to share an endedAt millisecond,
+// because that session's transcript/config won't be equal.
+export async function findSessionFile(session: Omit<SavedSession, "summary">): Promise<string | null> {
+  let files: string[];
+  try {
+    files = await readdir(sessionsDir());
+  } catch {
+    return null;
+  }
+  const base = sessionBase(session);
+  const pattern = new RegExp(`^${base.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(-\\d+)?\\.json$`);
+  for (const f of files.filter((f) => pattern.test(f)).sort()) {
+    const full = path.join(sessionsDir(), f);
+    const saved = JSON.parse(await readFile(full, "utf8")) as SavedSession;
+    if (sameSession(session, saved)) return full;
+  }
+  return null;
+}
+
+// Attaches a summary to an already-saved session record, in place — this is
+// the second half of the "write transcript, then attach summary" flow. It
+// intentionally overwrites (no `wx`): the file at `filePath` is known to
+// already be *this* session's record (found via saveSession's return value
+// or findSessionFile), so there is no collision to guard against, only an
+// update.
+export async function attachSummary(filePath: string, summary: SessionSummary): Promise<void> {
+  const raw = await readFile(filePath, "utf8");
+  const saved = JSON.parse(raw) as SavedSession;
+  saved.summary = summary;
+  await writeFile(filePath, JSON.stringify(saved, null, 2));
 }
 
 export async function loadLatestSummary(childName: string): Promise<SessionSummary | null> {

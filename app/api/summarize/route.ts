@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { saveSession } from "../../../lib/storage";
+import { attachSummary, findSessionFile, saveSession } from "../../../lib/storage";
 import type { SavedSession, SessionSummary } from "../../../lib/types";
 
 const SummarySchema = z.object({
@@ -16,8 +16,14 @@ const SummarySchema = z.object({
 export async function POST(request: Request) {
   const session = (await request.json()) as Omit<SavedSession, "summary">;
 
-  // Write first. A summary failure must never cost us the session.
-  await saveSession({ ...session, summary: null });
+  // Write first. A summary failure must never cost us the session. On a
+  // Retry, the client has no session id to hand back — it just resends the
+  // same session payload — so we look for a file that already holds this
+  // exact session (findSessionFile matches on content) before creating a
+  // new one. Either way `file` ends up durably on disk before we call
+  // Claude, and a retry updates that same record instead of leaving an
+  // orphaned summary:null sibling behind.
+  const file = (await findSessionFile(session)) ?? (await saveSession({ ...session, summary: null }));
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
@@ -63,7 +69,7 @@ failed to understand her, mark it "poor" — this is how the parent finds out.`,
     const summary = response.parsed_output as SessionSummary | null;
     if (!summary) return Response.json({ summary: null, error: "Could not parse the summary" }, { status: 502 });
 
-    await saveSession({ ...session, summary });
+    await attachSummary(file, summary);
     return Response.json({ summary });
   } catch (e) {
     return Response.json(

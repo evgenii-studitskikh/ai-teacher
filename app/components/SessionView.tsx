@@ -3,7 +3,7 @@
 import { ConversationProvider, useConversation } from "@elevenlabs/react";
 import type { Language } from "@elevenlabs/client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { OVERRIDES_DISABLED_MESSAGE, firstMessageMatches } from "../../lib/overrides";
+import { OVERRIDES_DISABLED_MESSAGE, firstMessageMatches, normalizeSpokenText } from "../../lib/overrides";
 import { buildFirstMessage, buildPrompt, buildWindDownMessage } from "../../lib/prompt";
 import type { SavedSession, SessionConfig, SessionSummary, TranscriptTurn } from "../../lib/types";
 
@@ -113,7 +113,17 @@ function SessionInner({ config, onDone }: Props) {
       // to an unguarded LLM. The aborted session is intentionally *not* passed
       // to onDone — it is one meaningless turn, and advancing to the summary
       // screen would bury the very message the parent needs to read.
-      if (msg.role === "agent" && !firstAgentTurnSeen.current) {
+      //
+      // The canary has exactly one shot (`firstAgentTurnSeen`), and ElevenLabs
+      // turns can legitimately arrive interrupted or zero-length. If we marked
+      // the flag on *any* agent turn — including an empty one — a zero-length
+      // first turn would consume the one shot, trivially "match" (there is
+      // nothing to compare), and the actual first spoken turn would never be
+      // checked again for the rest of the session: a disabled override would
+      // go undetected. So the flag is only set once there is a non-empty agent
+      // turn to judge; an empty one is ignored for canary purposes and the
+      // *next* non-empty agent turn is the one that gets checked.
+      if (msg.role === "agent" && !firstAgentTurnSeen.current && normalizeSpokenText(msg.message).length > 0) {
         firstAgentTurnSeen.current = true;
         const ours = firstMessageMatches(buildFirstMessage(config), msg.message, [
           config.childName,

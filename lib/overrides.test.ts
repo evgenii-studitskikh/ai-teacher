@@ -68,10 +68,6 @@ describe("firstMessageMatches — must not abort a good session", () => {
     expect(matches("Hi Mia! I'm Robo. Are you ready to play today, friend?")).toBe(true);
   });
 
-  it("does not abort on an empty message (nothing to judge)", () => {
-    expect(matches("")).toBe(true);
-  });
-
   it("works for a non-Latin name", () => {
     const ruConfig = { ...config, childName: "Аня", agentName: "Робо" };
     const ru = buildFirstMessage(ruConfig);
@@ -102,5 +98,69 @@ describe("firstMessageMatches — must abort an unguarded session", () => {
 
   it("rejects a first message built for a different child", () => {
     expect(matches(buildFirstMessage({ ...config, childName: "Sasha", agentName: "Buddy" }))).toBe(false);
+  });
+});
+
+// Regression coverage for the fail-open hole: SessionView.tsx used to mark
+// its one-shot "first agent turn seen" flag *before* running this check, and
+// firstMessageMatches used to return `true` for an empty `received`. An
+// agent turn that arrives interrupted or zero-length (not exotic on
+// ElevenLabs) would then trivially "match", the one-shot canary would be
+// consumed on nothing, and the *real* first turn — the one that would have
+// exposed a disabled override — would never be checked again for the rest of
+// the session.
+//
+// The fix has two parts:
+//   1. Here (pure logic, unit-tested below): firstMessageMatches no longer
+//      treats an empty `received` (or `expected`) as a match. An empty
+//      string is not evidence overrides are on, so it cannot pass.
+//   2. In SessionView.tsx (React + a live audio SDK, not unit-tested — this
+//      repo has no @testing-library/react or jsdom test environment, and
+//      faking one just to poke a ref would not honestly exercise the real
+//      ElevenLabs message-callback wiring): the one-shot flag is now only
+//      set once an agent turn's normalized text is non-empty, so an empty
+//      turn is skipped entirely and the *next* non-empty agent turn is the
+//      one actually judged. Part 1 is what makes part 2 safe even in
+//      isolation: even if a future change accidentally called this function
+//      on an empty turn, it could not be mistaken for a match.
+describe("firstMessageMatches — fail-open regression: an empty turn is never a match", () => {
+  it("rejects an empty received message outright (this used to return true)", () => {
+    expect(matches("")).toBe(false);
+  });
+
+  it("rejects when expected is empty too", () => {
+    expect(firstMessageMatches("", "Hi Mia! I'm Robo. Are you ready to play?", [])).toBe(false);
+  });
+
+  it("rejects whitespace-only received text (normalizes to empty)", () => {
+    expect(matches("   \n\t  ")).toBe(false);
+  });
+
+  it("sequence: [empty agent turn] -> [real turn that does NOT match] still fails closed", () => {
+    // Turn 1: an interrupted/zero-length agent turn. SessionView's guard
+    // means this call is never actually made against the canary in
+    // production (the flag isn't set yet, so the check is skipped) — but
+    // proving it returns false rather than true shows the underlying
+    // invariant holds even if it were.
+    expect(matches("")).toBe(false);
+    // Turn 2: the real first turn — an unguarded default agent's greeting
+    // that merely *looks* like ours. This is the one SessionView actually
+    // checks (per the fix), and it must still be rejected.
+    expect(matches("Hi! I'm Robo. Are you ready to play?")).toBe(false);
+  });
+
+  it("sequence: [empty agent turn] -> [real turn that DOES match] still proceeds", () => {
+    expect(matches("")).toBe(false);
+    // Turn 2: the genuine override-driven first message, arriving after an
+    // empty/interrupted turn. A legitimate session must not be punished for
+    // that hiccup.
+    expect(matches(expected)).toBe(true);
+  });
+
+  it("a legitimate Cyrillic-named session still passes after a leading empty turn", () => {
+    const ruConfig = { ...config, childName: "Аня", agentName: "Робо" };
+    const ru = buildFirstMessage(ruConfig);
+    expect(firstMessageMatches(ru, "", [ruConfig.childName, ruConfig.agentName])).toBe(false);
+    expect(firstMessageMatches(ru, ru, [ruConfig.childName, ruConfig.agentName])).toBe(true);
   });
 });

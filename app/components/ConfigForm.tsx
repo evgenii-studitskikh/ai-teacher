@@ -186,7 +186,7 @@ export default function ConfigForm({ onStart }: { onStart: (config: SessionConfi
         <textarea
           value={config.directives}
           onChange={(e) => set("directives", e.target.value)}
-          placeholder="She's shy — praise her a lot. She loves dinosaurs."
+          placeholder="Shy — praise them a lot. Loves dinosaurs."
           rows={3}
         />
       </label>

@@ -75,13 +75,25 @@ const SIMILARITY_THRESHOLD = 0.6;
  * child's name and the agent's name. Every one of them must appear in the
  * received text.
  *
- * An empty `received` is treated as a match: we cannot judge an empty string,
- * and aborting a session on one would be a false positive.
+ * An empty `received` (or `expected`) is NOT treated as a match. It used to
+ * be, on the theory that "we cannot judge an empty string, and aborting a
+ * session on one would be a false positive" — but that reasoning only holds
+ * if an empty string can never reach here as the thing being judged as *the*
+ * first turn. It can: ElevenLabs turns can arrive interrupted or
+ * zero-length, and if the caller treats receiving one as "the first turn has
+ * been checked", an empty turn silently consumes the one-shot canary and the
+ * real first turn — the one that would have exposed a disabled override —
+ * is never checked again for the rest of the session. So this function
+ * always fails closed on empty input; the caller (SessionView.tsx) is
+ * responsible for not invoking it, and not consuming the one-shot flag,
+ * until there is a non-empty agent turn to judge. An interrupted/empty first
+ * turn is skipped entirely and the next non-empty agent turn is the one
+ * actually checked.
  */
 export function firstMessageMatches(expected: string, received: string, mustMention: string[] = []): boolean {
   const e = normalizeSpokenText(expected);
   const r = normalizeSpokenText(received);
-  if (e.length === 0 || r.length === 0) return true;
+  if (e.length === 0 || r.length === 0) return false;
 
   for (const mention of mustMention) {
     const m = normalizeSpokenText(mention);

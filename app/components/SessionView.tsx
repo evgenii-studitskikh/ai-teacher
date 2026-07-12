@@ -161,6 +161,15 @@ function SessionInner({ config, onDone }: Props) {
     // dropped connection reads as "the call ended unexpectedly", not silence.
     onDisconnect: (details) => {
       if (details.reason === "error") setError(details.message);
+      // Nothing was ever said, so there is no lesson to save or summarize.
+      // Advancing anyway would unmount this component — and with it the error
+      // we just set — leaving the parent on a summary screen for an empty
+      // session with no clue why it never started. This is exactly what a
+      // rejected override looks like: ElevenLabs accepts the socket, reads our
+      // conversation_initiation_client_data, and closes with code 1008 and a
+      // message naming the offending field, all before a word is spoken.
+      // Staying put keeps that message on screen, where it is the entire fix.
+      if (transcriptRef.current.length === 0) return;
       finish();
     },
     // Confirmed against the same file: `onError?: (message: string, context?: any) => void`,

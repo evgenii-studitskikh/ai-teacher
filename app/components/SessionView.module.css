@@ -116,6 +116,30 @@
   color: var(--c-ink);
 }
 
+/* On short/narrow viewports the orb's fixed 240px box crowds out the
+   transcript — the transcript is where the parent spots a speech-recognition
+   failure, the single biggest risk here, so it must stay the dominant
+   region by area. Shrink the ring/orb and tighten .screen's rhythm instead
+   of shrinking the transcript's own min-height. The orb stays a clearly
+   readable glance-target, just a smaller one. Laptop-width, tall viewports
+   are untouched. */
+@media (max-width: 400px), (max-height: 720px) {
+  .screen {
+    gap: var(--s-3);
+  }
+  .stage {
+    padding: var(--s-2);
+  }
+  .ring {
+    width: 152px;
+    height: 152px;
+  }
+  .orb {
+    width: 108px;
+    height: 108px;
+  }
+}
+
 .state {
   text-align: center;
   font-size: var(--t-md);
@@ -149,6 +173,7 @@
   padding: var(--s-3) var(--s-4);
   border-radius: var(--r-lg);
   font-size: var(--t-sm);
+  overflow-wrap: anywhere;
 }
 .fromAgent {
   align-self: flex-start;
@@ -188,10 +213,23 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
-.end {
+/* .end sits inside .endBar, a sticky full-bleed backdrop — same pattern as
+   ConfigForm's .startBar, for the same reason: a bare sticky pill left
+   transcript content visible through the gaps around it as the page
+   scrolled. The bar bleeds to the viewport edges, cancelling .inner's own
+   horizontal padding (var(--s-4) — see app.module.css), and its own bottom
+   margin/padding pair cancels only its own bottom offset, not .inner's
+   larger bottom padding underneath it. */
+.endBar {
   flex-shrink: 0;
   position: sticky;
-  bottom: var(--s-4);
+  bottom: 0;
+  z-index: 1;
+  margin: 0 calc(var(--s-4) * -1) calc(var(--s-4) * -1);
+  padding: var(--s-4) var(--s-4) calc(var(--s-4) + env(safe-area-inset-bottom));
+  background: linear-gradient(to bottom, transparent, var(--c-bg) var(--s-4));
+}
+.end {
   min-height: 56px;
   width: 100%;
   background: var(--c-warn);

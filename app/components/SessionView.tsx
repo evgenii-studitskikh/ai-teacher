@@ -338,7 +338,10 @@ function SessionInner({ config, onDone }: Props) {
 
       <p className={styles.state} role="status">
         {conversation.status === "connecting" && "Connecting…"}
-        {orbState === "idle" && conversation.status === "disconnected" && "Ready when you are"}
+        {orbState === "idle" &&
+          conversation.status === "disconnected" &&
+          !overridesDisabled &&
+          "Ready when you are"}
         {orbState === "listening" && `${config.agentName} is listening`}
         {orbState === "speaking" && `${config.agentName} is talking`}
       </p>
@@ -354,9 +357,11 @@ function SessionInner({ config, onDone }: Props) {
       </div>
 
       {conversation.status === "connected" ? (
-        <button className={styles.end} onClick={() => conversation.endSession()}>
-          End session
-        </button>
+        <div className={styles.endBar}>
+          <button className={styles.end} onClick={() => conversation.endSession()}>
+            End session
+          </button>
+        </div>
       ) : (
         <button className={styles.start} onClick={start} disabled={conversation.status === "connecting"}>
           {conversation.status === "connecting" ? "Connecting…" : "Start"}

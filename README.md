@@ -1,12 +1,15 @@
 # AI Powered Teacher
 
-A local-only Next.js app where a parent configures a voice AI agent
+A Next.js app where a parent configures a voice AI agent
 ([ElevenLabs Agents Platform](https://elevenlabs.io/agents-platform)) and hands
 it to their child for a short spoken lesson.
 
-This app runs on your machine only. There is no auth, no deployment, and no
-database — session data (once added) lives in a local, gitignored `data/`
-directory.
+It runs the same on your laptop and deployed to Vercel. A shared passcode
+(`APP_PASSCODE`) gates the whole app so a public URL cannot spend your
+ElevenLabs and Anthropic credits. There is no database and no server-side
+storage: each child's profile, lesson transcripts, and summaries live in the
+browser's local storage on the device you use, so history is per-device — clear
+the browser's data and it is gone.
 
 ## Setup
 

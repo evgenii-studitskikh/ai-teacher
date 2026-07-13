@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { attachSummary } from "../../lib/browser-storage";
 import type { SavedSession, SessionSummary } from "../../lib/types";
 import styles from "./SummaryView.module.css";
 
@@ -36,33 +37,38 @@ function Chips({ title, items, tone }: { title: string; items: string[]; tone: "
 
 type Props = {
   session: Omit<SavedSession, "summary">;
-  // The path the transcript was written to. Its presence is the proof that the
-  // save succeeded: EndView does not mount this component until POST
-  // /api/sessions has come back with a real path. That is what licenses every
-  // "the transcript is saved" line below — this component can no longer be
-  // reached in a state where that sentence is false.
-  filePath: string;
+  // The id the transcript was saved under in localStorage. Its presence is the
+  // proof that the save succeeded: EndView does not mount this component until
+  // saveSession() has returned a real id. That is what licenses every "the
+  // transcript is saved" line below — this component can no longer be reached
+  // in a state where that sentence is false.
+  sessionId: string;
   onFinish: () => void;
 };
 
 type SummarizeResponse = { summary?: SessionSummary | null; error?: string };
 
-export default function SummaryView({ session, filePath, onFinish }: Props) {
+export default function SummaryView({ session, sessionId, onFinish }: Props) {
   const [summary, setSummary] = useState<SessionSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // Set only when a summary DID come back and IS on screen, but attaching it
+  // to the saved record failed (quota exceeded, storage disabled mid-session,
+  // ...). This is deliberately not `error`: the summary below is real, Claude
+  // ran and answered, and the parent must see it. It is also not nothing —
+  // the next lesson starts without this one's history — so it gets its own
+  // quiet, proportionate note rather than either silence or an alarm.
+  const [persistNote, setPersistNote] = useState<string | null>(null);
 
   const summarize = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setPersistNote(null);
     try {
       const res = await fetch("/api/summarize", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        // `filePath` tells the route exactly which record to attach the
-        // summary to, so a retry updates that same file instead of matching by
-        // content or (worse) writing a second one.
-        body: JSON.stringify({ ...session, filePath }),
+        body: JSON.stringify(session),
       });
       // The route always returns JSON, even on failure (see route.ts) — but
       // a dev-server restart, a proxy, or some other layer in front of it
@@ -71,13 +77,32 @@ export default function SummaryView({ session, filePath, onFinish }: Props) {
       // past this try, which would skip both setError and the `finally`
       // below and strand the parent on "Writing the summary…" forever.
       const data: SummarizeResponse = await res.json().catch(() => ({}) as SummarizeResponse);
-      if (data.summary) setSummary(data.summary);
-      else setError(data.error ?? "Could not write the summary.");
+      if (data.summary) {
+        // Show it FIRST. Claude already ran and answered — the parent must
+        // see the report (and, above all, the transcriptQuality alarm below)
+        // regardless of what happens next. Persisting it for next time is a
+        // separate, best-effort step: attachSummary writes to localStorage
+        // and CAN throw (quota exceeded, storage disabled mid-session), and
+        // a failure there must never take the summary that is already in
+        // memory down with it, and must never be reported as "could not
+        // reach the server" — the server answered fine.
+        setSummary(data.summary);
+        try {
+          attachSummary(sessionId, data.summary);
+        } catch {
+          setPersistNote(
+            "This report isn't saved on this device, so the next lesson will start without it. " +
+              "The lesson itself is fine — nothing about tonight's session was lost.",
+          );
+        }
+      } else {
+        setError(data.error ?? "Could not write the summary.");
+      }
     } catch {
       // fetch() itself rejected — offline, dev server restarted mid-request,
       // etc. Unlike before, this genuinely costs nothing but the summary: the
-      // transcript was written by POST /api/sessions before this component was
-      // ever mounted, and `filePath` above is the receipt for it.
+      // transcript was written to this device before this component was ever
+      // mounted, and `sessionId` above is the receipt for it.
       setError("Could not reach the server.");
     } finally {
       // Always runs, on every path (success, JSON error payload, unparsable
@@ -85,7 +110,7 @@ export default function SummaryView({ session, filePath, onFinish }: Props) {
       // never gets stuck on the loading state.
       setLoading(false);
     }
-  }, [session, filePath]);
+  }, [session, sessionId]);
 
   // Fire the summarize request exactly once per mount. Next.js App Router
   // runs React StrictMode in dev, which double-invokes mount effects
@@ -112,10 +137,10 @@ export default function SummaryView({ session, filePath, onFinish }: Props) {
         <p className={styles.error} role="alert">
           {error}
         </p>
-        {/* True by construction: see the `filePath` prop above. */}
+        {/* True by construction: see the `sessionId` prop above. */}
         <p className={styles.note}>
-          The transcript is saved — <code>{filePath}</code>. Only the summary is missing, and the
-          next session will simply start without one.
+          The transcript is saved on this device. Only the summary is missing, and the next session
+          will simply start without one.
         </p>
         <div className={styles.actionsBar}>
           <div className={styles.actions}>
@@ -139,6 +164,15 @@ export default function SummaryView({ session, filePath, onFinish }: Props) {
         <p className={styles.asrAlarm} role="alert">
           Heads up: speech recognition struggled to understand {session.config.childName} this
           session. If this keeps happening, the transcripts are worth reading yourself.
+        </p>
+      )}
+
+      {/* role="status", not "alert": this is not a failure the parent needs
+          to act on, just a proportionate heads-up that continuity is what's
+          at stake, not the lesson itself. */}
+      {persistNote && (
+        <p className={styles.note} role="status">
+          {persistNote}
         </p>
       )}
 

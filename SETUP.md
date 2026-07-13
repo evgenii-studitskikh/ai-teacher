@@ -33,3 +33,18 @@ exactly which toggle to flip.
     ELEVENLABS_API_KEY=...
     ELEVENLABS_AGENT_ID=...
     ANTHROPIC_API_KEY=...
+    APP_PASSCODE=...
+
+## 4. Set the passcode (CRITICAL — the app is unusable without it)
+
+The whole app — the page and every `/api/*` route — sits behind a single
+shared passcode, checked by `middleware.ts`. Set `APP_PASSCODE` to any
+value you like **both** in your local `.env.local` **and** in the Vercel
+project's environment variables (Project Settings → Environment Variables)
+before deploying.
+
+This is deliberate and fails closed: if `APP_PASSCODE` is not set, every
+request — the page, `/api/signed-url`, `/api/voices`, `/api/summarize` — is
+refused, including a request that submits the correct-looking passcode. A
+deploy that forgets to set it is unusable, not unprotected, because those
+routes spend your ElevenLabs and Anthropic credits.

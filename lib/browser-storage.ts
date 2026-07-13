@@ -13,8 +13,42 @@ import type { SavedSession, SessionConfig, SessionSummary } from "./types";
 const PROFILE_PREFIX = "ai-teacher:profile:";
 const SESSION_PREFIX = "ai-teacher:session:";
 
+// A store that behaves as if storage exists but is entirely blocked: reads
+// see it as empty (so the app opens exactly as it would on a brand-new
+// browser, with no history), and every mutation throws (so a caller that
+// tries to save something load-bearing — a transcript, a profile — finds
+// out immediately, instead of being told a write succeeded when nothing was
+// stored). Silently swallowing a write here would be the same lie EndView
+// exists to prevent, just moved one layer down.
+function blockedStore(): Storage {
+  const fail = (): never => {
+    throw new Error("Storage is blocked by your browser settings.");
+  };
+  return {
+    get length() {
+      return 0;
+    },
+    clear: fail,
+    getItem: () => null,
+    key: () => null,
+    removeItem: fail,
+    setItem: fail,
+  };
+}
+
 function defaultStore(): Storage {
-  return window.localStorage;
+  try {
+    // Merely accessing this getter — not calling any method on it — throws
+    // a SecurityError in Chrome/Edge with "block all site data" (and
+    // equivalent policies elsewhere). That throw happens while evaluating a
+    // function's default parameter, which runs BEFORE that function's own
+    // try/catch, so every call site downstream needs this caught here, at
+    // the point of access, or none of the read-side degrading below ever
+    // gets a chance to run.
+    return window.localStorage;
+  } catch {
+    return blockedStore();
+  }
 }
 
 // Keys must be stable across sessions and safe as a key. Two different children
@@ -101,13 +135,20 @@ export function saveSession(session: Omit<SavedSession, "summary">, store: Stora
 export function attachSummary(id: string, summary: SessionSummary, store: Storage = defaultStore()): void {
   const raw = store.getItem(id);
   if (!raw) return;
+  // JSON.parse and store.setItem are deliberately NOT in the same try: a
+  // record we cannot parse is a record we must not overwrite with a
+  // half-formed one, so that failure is swallowed — but a failure to WRITE
+  // (quota exceeded, storage disabled mid-session) must propagate. Catching
+  // both in one block used to silently eat a full-quota SUMMARY save: the
+  // caller (SummaryView) got no exception, assumed the summary was safely
+  // attached, and never told the parent their history would not carry over.
+  let record: SavedSession;
   try {
-    const record = JSON.parse(raw) as SavedSession;
-    store.setItem(id, JSON.stringify({ ...record, summary }));
+    record = JSON.parse(raw) as SavedSession;
   } catch {
-    // A record we cannot parse is a record we must not overwrite with a
-    // half-formed one.
+    return;
   }
+  store.setItem(id, JSON.stringify({ ...record, summary }));
 }
 
 export function loadLatestSummary(childName: string, store: Storage = defaultStore()): SessionSummary | null {

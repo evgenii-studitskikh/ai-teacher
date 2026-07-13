@@ -186,8 +186,9 @@ export default function ConfigForm({ onStart }: { onStart: (config: SessionConfi
   //
   // The saved voiceId is restored **as-is**, with no validation here at all.
   // This function runs at the exact moment the voices list is least likely to
-  // exist (the cards are the first thing on screen, and they are fed by a
-  // local readdir that beats the remote ElevenLabs call every time), so any
+  // exist (the cards are the first thing on screen, and they are fed by
+  // listProfiles() reading localStorage, which beats the remote ElevenLabs
+  // call every time), so any
   // check made here would be a check against an empty array — which is how the
   // child used to end up with a different teacher's voice. Validation belongs
   // to the effect above, which runs again the instant the real list lands and

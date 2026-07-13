@@ -1,5 +1,5 @@
 // lib/browser-storage.test.ts
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   attachSummary,
   listProfiles,
@@ -172,6 +172,30 @@ describe("sessions", () => {
     expect(loadLatestSummary("Аня", store)).toBeNull();
   });
 
+  // attachSummary must not conflate "the existing record is corrupt" (safe
+  // to swallow — overwriting it would just replace one unreadable record
+  // with a half-formed one) with "the write itself failed" (must propagate:
+  // this is the exact case SummaryView relies on to tell the parent their
+  // report isn't saved for next time, rather than claiming success).
+  it("swallows a corrupt existing record instead of throwing", () => {
+    store.setItem("ai-teacher:session:broken", "{not json");
+    expect(() => attachSummary("ai-teacher:session:broken", summary, store)).not.toThrow();
+    expect(store.getItem("ai-teacher:session:broken")).toBe("{not json"); // left untouched
+  });
+
+  it("propagates a write failure instead of silently dropping the summary", () => {
+    const id = saveSession(makeSession("2026-01-01T10:00:00.000Z"), store);
+    // A store whose reads work (so JSON.parse succeeds) but whose writes
+    // fail — a full quota, not a fully-disabled storage.
+    const full: Storage = {
+      ...store,
+      setItem: () => {
+        throw new DOMException("Quota exceeded", "QuotaExceededError");
+      },
+    };
+    expect(() => attachSummary(id, summary, full)).toThrow();
+  });
+
   it("two sessions in the same millisecond both survive", () => {
     const a = saveSession(makeSession("2026-01-01T10:00:00.000Z"), store);
     const b = saveSession(makeSession("2026-01-01T10:00:00.000Z"), store);
@@ -226,5 +250,50 @@ describe("degraded storage", () => {
 
   it("attachSummary still throws when storage access fails", () => {
     expect(() => attachSummary("ai-teacher:session:x", summary, throwingStore())).toThrow();
+  });
+});
+
+// The scenarios above all pass a `store` explicitly, which never exercises
+// `defaultStore()` itself. This section calls every function with NO store
+// argument, so each one goes through the real default-parameter path, with
+// `window.localStorage` stubbed to throw on mere access — exactly what
+// Chrome/Edge does with "block all site data" enabled. Before the fix,
+// that throw happened while evaluating the default parameter, which runs
+// before any function's own try/catch, so it crashed straight out of
+// listProfiles() and blanked ConfigForm's mount effect.
+describe("defaultStore fallback (window.localStorage itself throws on access)", () => {
+  beforeEach(() => {
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: {
+        get localStorage(): Storage {
+          throw new DOMException("The operation is insecure.", "SecurityError");
+        },
+      },
+    });
+  });
+
+  afterEach(() => {
+    Reflect.deleteProperty(globalThis, "window");
+  });
+
+  it("listProfiles() degrades to [] when window.localStorage itself throws", () => {
+    expect(listProfiles()).toEqual([]);
+  });
+
+  it("loadProfile() degrades to null when window.localStorage itself throws", () => {
+    expect(loadProfile("Mia")).toBeNull();
+  });
+
+  it("loadLatestSummary() degrades to null when window.localStorage itself throws", () => {
+    expect(loadLatestSummary("Mia")).toBeNull();
+  });
+
+  it("saveSession() still throws when window.localStorage itself throws", () => {
+    expect(() => saveSession(makeSession("2026-01-01T10:00:00.000Z"))).toThrow();
+  });
+
+  it("saveProfile() still throws when window.localStorage itself throws", () => {
+    expect(() => saveProfile(config)).toThrow();
   });
 });

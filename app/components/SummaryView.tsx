@@ -52,10 +52,18 @@ export default function SummaryView({ session, sessionId, onFinish }: Props) {
   const [summary, setSummary] = useState<SessionSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // Set only when a summary DID come back and IS on screen, but attaching it
+  // to the saved record failed (quota exceeded, storage disabled mid-session,
+  // ...). This is deliberately not `error`: the summary below is real, Claude
+  // ran and answered, and the parent must see it. It is also not nothing —
+  // the next lesson starts without this one's history — so it gets its own
+  // quiet, proportionate note rather than either silence or an alarm.
+  const [persistNote, setPersistNote] = useState<string | null>(null);
 
   const summarize = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setPersistNote(null);
     try {
       const res = await fetch("/api/summarize", {
         method: "POST",
@@ -70,10 +78,23 @@ export default function SummaryView({ session, sessionId, onFinish }: Props) {
       // below and strand the parent on "Writing the summary…" forever.
       const data: SummarizeResponse = await res.json().catch(() => ({}) as SummarizeResponse);
       if (data.summary) {
-        // Attach it to the record we already saved, locally — the route
-        // itself is stateless and never touches this session's storage.
-        attachSummary(sessionId, data.summary);
+        // Show it FIRST. Claude already ran and answered — the parent must
+        // see the report (and, above all, the transcriptQuality alarm below)
+        // regardless of what happens next. Persisting it for next time is a
+        // separate, best-effort step: attachSummary writes to localStorage
+        // and CAN throw (quota exceeded, storage disabled mid-session), and
+        // a failure there must never take the summary that is already in
+        // memory down with it, and must never be reported as "could not
+        // reach the server" — the server answered fine.
         setSummary(data.summary);
+        try {
+          attachSummary(sessionId, data.summary);
+        } catch {
+          setPersistNote(
+            "This report isn't saved on this device, so the next lesson will start without it. " +
+              "The lesson itself is fine — nothing about tonight's session was lost.",
+          );
+        }
       } else {
         setError(data.error ?? "Could not write the summary.");
       }
@@ -143,6 +164,15 @@ export default function SummaryView({ session, sessionId, onFinish }: Props) {
         <p className={styles.asrAlarm} role="alert">
           Heads up: speech recognition struggled to understand {session.config.childName} this
           session. If this keeps happening, the transcripts are worth reading yourself.
+        </p>
+      )}
+
+      {/* role="status", not "alert": this is not a failure the parent needs
+          to act on, just a proportionate heads-up that continuity is what's
+          at stake, not the lesson itself. */}
+      {persistNote && (
+        <p className={styles.note} role="status">
+          {persistNote}
         </p>
       )}
 

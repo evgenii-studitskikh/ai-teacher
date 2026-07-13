@@ -1,4 +1,4 @@
-# AI Teacher
+# AI Powered Teacher
 
 A local-only Next.js app where a parent configures a voice AI agent
 ([ElevenLabs Agents Platform](https://elevenlabs.io/agents-platform)) and hands

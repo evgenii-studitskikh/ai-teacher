@@ -1,17 +1,14 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { attachSummary, findSessionFile, resolveSessionFile, saveSession } from "../../../lib/storage";
 import type { SavedSession, SessionSummary } from "../../../lib/types";
 
-// The client sends the finished session plus, when it has one, the path
-// POST /api/sessions returned when it wrote that session to disk. The path is
-// a hint, not a requirement: it makes the common case exact and cheap (no
-// directory scan, no content comparison), while the content match remains as
-// the fallback so a request without a usable path still finds — or creates —
-// the one right record. Keeping it optional is also what lets the transcript
-// still be durable if the save-first step is ever bypassed.
-type SummarizeRequest = Omit<SavedSession, "summary"> & { filePath?: string };
+// The server is stateless: it takes a finished transcript and returns a
+// summary, nothing more. Persistence lives entirely in the browser now (see
+// lib/browser-storage.ts) — this route never reads or writes anything on
+// disk, which is also what makes it safe to run on Vercel's read-only
+// filesystem.
+type SummarizeRequest = Omit<SavedSession, "summary">;
 
 const SummarySchema = z.object({
   whatWeDid: z.string(),
@@ -23,9 +20,9 @@ const SummarySchema = z.object({
 });
 
 export async function POST(request: Request) {
-  let body: SummarizeRequest;
+  let session: SummarizeRequest;
   try {
-    body = (await request.json()) as SummarizeRequest;
+    session = (await request.json()) as SummarizeRequest;
   } catch {
     // Malformed body. This used to be outside every try block, so a bad
     // request produced an unhandled exception and a non-JSON 500 — which on
@@ -34,29 +31,7 @@ export async function POST(request: Request) {
     return Response.json({ summary: null, error: "Malformed request body" }, { status: 400 });
   }
 
-  const { filePath, ...session } = body;
-
   try {
-    // Resolve the record this summary belongs to, in order of preference:
-    //   1. the path the client was given by POST /api/sessions when the
-    //      transcript was written (validated against data/sessions);
-    //   2. a content match against what's already on disk (a retry whose
-    //      client lost the path, or a client that skipped the save step);
-    //   3. failing both, write the transcript now.
-    // Whichever branch runs, the transcript is durably on disk before Claude
-    // is called, and a retry updates that same record rather than leaving an
-    // orphaned `summary: null` sibling behind.
-    //
-    // This save step used to sit outside the try block, so a storage failure
-    // (e.g. EACCES) would throw past every handler here and hand the client an
-    // unhandled 500 with no JSON body. It's now inside the same try as the
-    // Claude call, so any failure on either side comes back as a JSON error
-    // the client can actually parse and show a Retry for.
-    const file =
-      (filePath ? await resolveSessionFile(filePath) : null) ??
-      (await findSessionFile(session)) ??
-      (await saveSession({ ...session, summary: null }));
-
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
       return Response.json({ summary: null, error: "ANTHROPIC_API_KEY not set" }, { status: 500 });
@@ -100,7 +75,6 @@ failed to understand them, mark it "poor" — this is how the parent finds out.`
     const summary = response.parsed_output as SessionSummary | null;
     if (!summary) return Response.json({ summary: null, error: "Could not parse the summary" }, { status: 502 });
 
-    await attachSummary(file, summary);
     return Response.json({ summary });
   } catch (e) {
     return Response.json(

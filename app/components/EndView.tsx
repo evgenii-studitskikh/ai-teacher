@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import SummaryView from "./SummaryView";
+import { saveSession } from "../../lib/browser-storage";
 import type { SavedSession } from "../../lib/types";
 import styles from "./SummaryView.module.css";
 
@@ -12,10 +13,8 @@ type Props = {
 
 type SaveState =
   | { status: "saving" }
-  | { status: "saved"; filePath: string }
+  | { status: "saved"; sessionId: string }
   | { status: "failed"; message: string };
-
-type SaveResponse = { filePath?: string | null; error?: string };
 
 // Everything that happens after the child stops talking, in the one order that
 // is safe: **save the transcript, then summarize it.**
@@ -30,33 +29,33 @@ type SaveResponse = { filePath?: string | null; error?: string };
 //
 // Here the save is a step with its own state, and it gates everything after
 // it. SummaryView is not even mounted until a save has actually succeeded and
-// returned a real path — which is what makes its "the transcript is saved"
+// returned a real id — which is what makes its "the transcript is saved"
 // copy true by construction, rather than by hopeful assumption. If the save
 // fails, this component says so in the strongest terms it has, and offers only
 // a retry: there is deliberately no way to leave this screen while the
 // transcript is unsaved.
+//
+// The save itself moved from a fetch to localStorage (see
+// lib/browser-storage.ts): it is synchronous and cannot fail the way a
+// network call can (no dropped connection, no server restart mid-request) —
+// but it CAN throw (Safari private mode, a full quota), so the same
+// save/failed/retry shape still applies, just around a try/catch instead of
+// a fetch.
 export default function EndView({ session, onFinish }: Props) {
   const [state, setState] = useState<SaveState>({ status: "saving" });
 
-  const save = useCallback(async () => {
+  const save = useCallback(() => {
     setState({ status: "saving" });
     try {
-      const res = await fetch("/api/sessions", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(session),
+      const sessionId = saveSession(session);
+      setState({ status: "saved", sessionId });
+    } catch (e) {
+      // localStorage throws when it is full or disabled (Safari private
+      // mode) — this is precisely the case the old code lied about.
+      setState({
+        status: "failed",
+        message: e instanceof Error ? e.message : "The browser refused to save the transcript.",
       });
-      const data: SaveResponse = await res.json().catch(() => ({}) as SaveResponse);
-      if (res.ok && data.filePath) {
-        setState({ status: "saved", filePath: data.filePath });
-      } else {
-        setState({ status: "failed", message: data.error ?? `The server refused the save (HTTP ${res.status}).` });
-      }
-    } catch {
-      // fetch() itself rejected: the request never reached the server, so
-      // nothing was written. This is precisely the case the old code lied
-      // about.
-      setState({ status: "failed", message: "Could not reach the server — the request never got there." });
     }
   }, [session]);
 
@@ -89,8 +88,8 @@ export default function EndView({ session, onFinish }: Props) {
           <p>{state.message}</p>
           <p className={styles.note}>
             This lesson is still in this browser tab and nowhere else. Do not close or reload the tab
-            — that would lose it for good. Check that the app&apos;s server (<code>npm run dev</code>) is
-            still running, then retry.
+            — that would lose it for good. If your browser is in private mode or storage is full, fix
+            that, then retry.
           </p>
         </div>
         {/* Deliberately no "Done" button here: the only thing this screen can
@@ -106,5 +105,5 @@ export default function EndView({ session, onFinish }: Props) {
     );
   }
 
-  return <SummaryView session={session} filePath={state.filePath} onFinish={onFinish} />;
+  return <SummaryView session={session} sessionId={state.sessionId} onFinish={onFinish} />;
 }

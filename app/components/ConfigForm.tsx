@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { SessionConfig } from "../../lib/types";
 import { LANGUAGE_OPTIONS } from "../../lib/prompt";
+import { loadProfile, listProfiles, saveProfile } from "../../lib/browser-storage";
 import { resolveVoiceSelection } from "../../lib/voice-selection";
 import styles from "./ConfigForm.module.css";
 
@@ -38,17 +39,6 @@ export default function ConfigForm({ onStart }: { onStart: (config: SessionConfi
   const touched = useRef(new Set<keyof SessionConfig>());
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const formId = useId();
-
-  // Mirrors `config` after every commit so `loadSaved` can read the
-  // truly-latest state after its `await fetch` without going through a
-  // setState updater — updater functions get double-invoked by StrictMode.
-  // Refs must not be written during render (react-hooks/refs), so this runs
-  // in an effect rather than the component body; the assignment is
-  // idempotent, so re-running it is harmless.
-  const configRef = useRef(config);
-  useEffect(() => {
-    configRef.current = config;
-  });
 
   useEffect(() => {
     // A failing /api/voices used to leave `voices` empty, the Voice dropdown
@@ -86,13 +76,20 @@ export default function ConfigForm({ onStart }: { onStart: (config: SessionConfi
   }, []);
 
   // Saved children, for the "pick up where you left off" cards above the
-  // form. A failed fetch just means no cards render — the form underneath
-  // still works exactly as it did before this existed.
+  // form. listProfiles() degrades to [] if storage is unavailable, so no
+  // cards render and the form underneath still works exactly as it did
+  // before this existed. Still inside an effect, not a render-time call:
+  // localStorage does not exist during the server render.
+  //
+  // Same react-hooks/set-state-in-effect situation as SessionView's
+  // lastSummary read (see the comment there): useSyncExternalStore is the
+  // rule's suggested alternative, but listProfiles() allocates a new array on
+  // every call, so it cannot serve as a stable getSnapshot, and there is no
+  // change event to subscribe to. A one-shot client-only read in an effect is
+  // the correct tool here.
   useEffect(() => {
-    fetch("/api/profiles/list")
-      .then((r) => r.json())
-      .then((d) => setProfiles(d.profiles ?? []))
-      .catch(() => setProfiles([]));
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setProfiles(listProfiles());
   }, []);
 
   // Reload a saved profile when the parent finishes typing the child's name.
@@ -104,29 +101,25 @@ export default function ConfigForm({ onStart }: { onStart: (config: SessionConfi
   // saved profile is now only allowed to fill in fields the parent has not
   // touched: what they typed always wins, and anything the profile did supply
   // is named out loud underneath the field.
-  async function loadSaved() {
+  //
+  // loadProfile() is synchronous now, so there is no `await` gap in which
+  // `config` could go stale — reading it straight from the closure is safe,
+  // and the configRef that used to survive that gap is gone with it.
+  function loadSaved() {
     if (!config.childName) return;
-    const res = await fetch(`/api/profiles?childName=${encodeURIComponent(config.childName)}`);
-    if (!res.ok) return;
-    const { config: saved }: { config: SessionConfig | null } = await res.json();
+    const saved = loadProfile(config.childName);
     if (!saved) {
       setProfileNote(null);
       return;
     }
 
-    // Computed purely, outside any setState updater: React 18 StrictMode
-    // double-invokes updater functions, and pushing into `applied` from
-    // inside one used to record every filled field twice ("goal, goal,
-    // minutes, minutes"). `configRef.current` gives the same up-to-date
-    // state an updater would have, without the impure side effect.
-    const current = configRef.current;
-    const next = { ...current };
+    const next = { ...config };
     const applied: (keyof SessionConfig)[] = [];
     for (const key of Object.keys(DEFAULTS) as (keyof SessionConfig)[]) {
       // childName is what we looked the profile up *by* — never overwrite the
       // spelling the parent just typed with the stored one.
       if (key === "childName" || touched.current.has(key)) continue;
-      if (saved[key] === undefined || saved[key] === current[key]) continue;
+      if (saved[key] === undefined || saved[key] === config[key]) continue;
       Object.assign(next, { [key]: saved[key] });
       applied.push(key);
     }
@@ -143,11 +136,11 @@ export default function ConfigForm({ onStart }: { onStart: (config: SessionConfi
   // DERIVED, every render, from the two things that decide it — never stored.
   // That is the fix for the bug, not just a tidier shape for it.
   //
-  // The two data sources race. /api/profiles/list is a local readdir (~1ms);
-  // /api/voices proxies a remote ElevenLabs call (hundreds of ms). So the
-  // saved-child cards are on screen and being tapped *before* `voices` exists —
-  // the cards are the first thing the parent sees, so that window is not an
-  // edge case, it is the happy path.
+  // The two data sources race. listProfiles() reads localStorage synchronously
+  // (sub-millisecond); /api/voices proxies a remote ElevenLabs call (hundreds
+  // of ms). So the saved-child cards are on screen and being tapped *before*
+  // `voices` exists — the cards are the first thing the parent sees, so that
+  // window is not an edge case, it is the happy path.
   //
   // The old code resolved the voice once, imperatively, inside applyCard: it
   // ran `voices.some(...)` against the still-empty array, concluded the child's
@@ -169,18 +162,21 @@ export default function ConfigForm({ onStart }: { onStart: (config: SessionConfi
     setConfig((c) => ({ ...c, [key]: value }));
   };
 
-  async function submit(e: React.FormEvent) {
+  function submit(e: React.FormEvent) {
     e.preventDefault();
     // `voiceId`, not `config.voiceId`: the derived value is the one the radios
     // showed the parent and the one the child will actually hear, so it is the
     // one that gets used AND the one that gets saved back to the profile —
     // otherwise a substituted voice would be silently un-substituted next time.
     const chosen = { ...config, voiceId };
-    await fetch("/api/profiles", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(chosen),
-    });
+    try {
+      saveProfile(chosen);
+    } catch {
+      // Saving the profile is a convenience — it only ever fills in fields for
+      // next time. Losing it must not block tonight's lesson, so the session
+      // starts either way. Contrast with EndView's saveSession, which is the
+      // one save this app treats as load-bearing and lets throw all the way up.
+    }
     onStart(chosen);
   }
 

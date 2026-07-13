@@ -3,6 +3,7 @@
 import { ConversationProvider, useConversation } from "@elevenlabs/react";
 import type { Language } from "@elevenlabs/client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { loadLatestSummary } from "../../lib/browser-storage";
 import { OVERRIDES_DISABLED_MESSAGE, firstMessageMatches, normalizeSpokenText } from "../../lib/overrides";
 import { buildFirstMessage, buildPrompt, buildWindDownMessage } from "../../lib/prompt";
 import type { SavedSession, SessionConfig, SessionSummary, TranscriptTurn } from "../../lib/types";
@@ -49,16 +50,26 @@ function SessionInner({ config, onDone }: Props) {
   // the final turn (see `finish` below for why this matters).
   const transcriptRef = useRef<TranscriptTurn[]>([]);
 
-  // Fetch the previous summary before we can build the prompt. The prompt
+  // Load the previous summary before we can build the prompt. The prompt
   // needs `config` (typed by the parent, client-side) and `lastSummary`
-  // (on disk, server-side only) — so this fetch is the reason
-  // GET /api/last-summary exists at all.
+  // (in localStorage, browser-side only). `loadLatestSummary` is
+  // synchronous, but localStorage does not exist during the server render,
+  // so the read still has to happen inside an effect rather than at render
+  // time.
+  //
+  // react-hooks/set-state-in-effect flags this as a synchronous setState in
+  // an effect and suggests useSyncExternalStore instead — the right tool for
+  // an external store in general, but not this one: loadLatestSummary()
+  // returns a freshly-parsed object on every call, so getSnapshot would never
+  // return a referentially-stable value and React would warn about (or loop
+  // on) "the result of getSnapshot should be cached". There is also no
+  // subscription to offer — localStorage does not push change events for
+  // same-tab writes — so this is a plain one-shot client-only read, which is
+  // exactly what an effect is for.
   useEffect(() => {
-    fetch(`/api/last-summary?childName=${encodeURIComponent(config.childName)}`)
-      .then((r) => r.json())
-      .then((d) => setLastSummary(d.summary))
-      .catch(() => setLastSummary(null))
-      .finally(() => setReady(true));
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLastSummary(loadLatestSummary(config.childName));
+    setReady(true);
   }, [config.childName]);
 
   const systemPrompt = useMemo(() => buildPrompt(config, lastSummary), [config, lastSummary]);

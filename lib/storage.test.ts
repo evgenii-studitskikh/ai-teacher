@@ -6,6 +6,7 @@ import path from "node:path";
 import {
   attachSummary,
   findSessionFile,
+  listProfiles,
   loadLatestSummary,
   loadProfile,
   resolveSessionFile,
@@ -223,5 +224,29 @@ describe("attachSummary / findSessionFile (write-then-attach flow)", () => {
     expect(files).toHaveLength(1);
     const saved = JSON.parse(await readFile(retryFile, "utf8")) as SavedSession;
     expect(saved.summary).toEqual(summary);
+  });
+});
+
+describe("listProfiles", () => {
+  it("returns an empty list when no profiles exist", async () => {
+    expect(await listProfiles()).toEqual([]);
+  });
+
+  it("returns every saved profile", async () => {
+    const mia: SessionConfig = { ...config, childName: "Mia", goal: "Count to 10" };
+    const anya: SessionConfig = { ...config, childName: "Аня", goal: "Animals" };
+    await saveProfile(mia);
+    await saveProfile(anya);
+
+    const profiles = await listProfiles();
+    expect(profiles).toHaveLength(2);
+    expect(profiles.map((p) => p.childName).sort()).toEqual(["Mia", "Аня"]);
+  });
+
+  it("round-trips a profile's full config, not just the name", async () => {
+    await saveProfile({ ...config, childName: "Mia", goal: "Count to 10", minutes: 15 });
+    const [profile] = await listProfiles();
+    expect(profile.goal).toBe("Count to 10");
+    expect(profile.minutes).toBe(15);
   });
 });

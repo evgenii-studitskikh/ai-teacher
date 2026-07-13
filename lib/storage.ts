@@ -40,6 +40,26 @@ export async function saveProfile(config: SessionConfig): Promise<void> {
   );
 }
 
+export async function listProfiles(): Promise<SessionConfig[]> {
+  let files: string[];
+  try {
+    files = await readdir(profilesDir());
+  } catch {
+    return []; // no profiles directory yet — no children saved
+  }
+
+  const profiles: SessionConfig[] = [];
+  for (const file of files.filter((f) => f.endsWith(".json"))) {
+    try {
+      profiles.push(JSON.parse(await readFile(path.join(profilesDir(), file), "utf8")) as SessionConfig);
+    } catch {
+      // A corrupt or half-written profile must not take down the whole list —
+      // the parent should still see their other children.
+    }
+  }
+  return profiles;
+}
+
 export async function loadProfile(childName: string): Promise<SessionConfig | null> {
   try {
     const raw = await readFile(path.join(profilesDir(), `${slug(childName)}.json`), "utf8");

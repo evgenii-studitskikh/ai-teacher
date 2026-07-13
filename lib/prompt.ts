@@ -1,4 +1,56 @@
-import type { SessionConfig, SessionSummary } from "./types";
+import type { Language, SessionConfig, SessionSummary } from "./types";
+
+// Every language the app offers, with the two things it needs to actually teach
+// in that language.
+//
+// `greeting` matters more than it looks. ElevenLabs speaks the `first_message`
+// override VERBATIM — it does not translate it — so this string is, literally,
+// the first thing the child hears. It used to be hardcoded English, which meant
+// a Russian-speaking five-year-old was greeted in a language they may not know,
+// while the speech recogniser was already listening for Russian.
+//
+// Two constraints on every greeting:
+//   1. It must contain both names. The override canary (lib/overrides.ts)
+//      compares the agent's first spoken turn against this string and requires
+//      the child's and the agent's names to appear in it. That canary is the
+//      app's only defence against the child talking to a model with none of our
+//      safety guardrails, so a greeting that dropped a name would quietly
+//      disable it.
+//   2. It must not assume the child's sex. Russian and Spanish inflect
+//      adjectives for gender, so the obvious translation of "Are you ready?"
+//      ("Готова?" / "¿Lista?") picks one — which this app never does. The
+//      phrasing below sidesteps it entirely ("Давай поиграем?" / "¿Jugamos?" —
+//      "shall we play?"), which is also just warmer.
+//
+// Typed as a Record over the Language union, so adding a language to the union
+// without giving it a greeting is a compile error rather than an English
+// greeting nobody notices until a child is sitting in front of it.
+const LANGUAGES: Record<Language, { name: string; greeting: (child: string, agent: string) => string }> = {
+  en: {
+    name: "English",
+    greeting: (child, agent) => `Hi ${child}! I'm ${agent}. Are you ready to play?`,
+  },
+  ru: {
+    name: "Russian",
+    greeting: (child, agent) => `Привет, ${child}! Я ${agent}. Давай поиграем?`,
+  },
+  es: {
+    name: "Spanish",
+    greeting: (child, agent) => `¡Hola ${child}! Soy ${agent}. ¿Jugamos?`,
+  },
+  de: {
+    name: "German",
+    greeting: (child, agent) => `Hallo ${child}! Ich bin ${agent}. Wollen wir spielen?`,
+  },
+};
+
+export function languageName(language: Language): string {
+  return LANGUAGES[language].name;
+}
+
+export const LANGUAGE_OPTIONS: { value: Language; label: string }[] = (
+  Object.keys(LANGUAGES) as Language[]
+).map((value) => ({ value, label: LANGUAGES[value].name }));
 
 // Nothing in this file may assume the child's gender. The app deliberately has
 // no gender field (asking for one buys nothing and is one more thing to get
@@ -50,7 +102,20 @@ ${name} struggled with: ${lastSummary.struggled.join(", ") || "nothing in partic
 Focus for today: ${lastSummary.nextFocus}`
     : "";
 
+  // The `language` override configures ElevenLabs' speech-to-text and
+  // text-to-speech models — it does not tell the LLM what language to answer
+  // in. Probing the live API showed the model does pick up the child's language
+  // once the child speaks, but that leaves the very first exchange to luck, so
+  // we say it outright. (The instructions themselves stay in English: models
+  // follow English instructions well, and one language of prompt is one prompt
+  // to maintain.)
+  const language = LANGUAGES[config.language].name;
+
   return `You are ${config.agentName}, a warm, playful teacher talking with ${name}, who is ${config.childAge} years old.
+
+## Language
+Speak ONLY in ${language}. Every word you say to ${name} is in ${language}, including
+your praise and your goodbye. ${name} may not understand any other language.
 
 ## Today's goal
 ${config.goal}
@@ -74,8 +139,10 @@ praise one specific thing ${name} did today, then say a warm goodbye. Do not sta
 anything new.`;
 }
 
+// The first thing the child hears. ElevenLabs speaks this verbatim — see the
+// LANGUAGES table above for why that makes it load-bearing in two directions.
 export function buildFirstMessage(config: SessionConfig): string {
-  return `Hi ${config.childName}! I'm ${config.agentName}. Are you ready to play?`;
+  return LANGUAGES[config.language].greeting(config.childName, config.agentName);
 }
 
 // The wind-down message the client sends as a contextual update at 80% elapsed.
@@ -83,5 +150,5 @@ export function buildFirstMessage(config: SessionConfig): string {
 // child — so it is held to the same no-pronoun rule as the prompt above, and
 // lives here next to the prompt rather than being buried in the component.
 export function buildWindDownMessage(config: SessionConfig): string {
-  return `Time is nearly up. Praise one specific thing ${config.childName} did today, then say a warm goodbye. Do not start anything new.`;
+  return `Time is nearly up. Praise one specific thing ${config.childName} did today, then say a warm goodbye — in ${LANGUAGES[config.language].name}, as always. Do not start anything new.`;
 }

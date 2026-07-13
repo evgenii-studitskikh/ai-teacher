@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import type { SessionConfig } from "../../lib/types";
+import { LANGUAGE_OPTIONS } from "../../lib/prompt";
 import { resolveVoiceSelection } from "../../lib/voice-selection";
 import styles from "./ConfigForm.module.css";
 
@@ -18,12 +19,11 @@ const DEFAULTS: SessionConfig = {
   minutes: 10,
 };
 
-const LANGUAGES = [
-  { value: "en", label: "English" },
-  { value: "ru", label: "Russian" },
-  { value: "es", label: "Spanish" },
-  { value: "de", label: "German" },
-];
+// Deliberately NOT a second list. The languages the parent can pick and the
+// languages the agent has a greeting for must be the same set, or we greet a
+// child in a language they don't speak — which is exactly what happened when
+// these were two unrelated lists.
+const LANGUAGES = LANGUAGE_OPTIONS;
 
 export default function ConfigForm({ onStart }: { onStart: (config: SessionConfig) => void }) {
   const [config, setConfig] = useState<SessionConfig>(DEFAULTS);
@@ -281,7 +281,13 @@ export default function ConfigForm({ onStart }: { onStart: (config: SessionConfi
             <select
               id={`${formId}-language`}
               value={config.language}
-              onChange={(e) => set("language", e.target.value)}
+              // A <select>'s value is a bare string, but `language` is a closed
+              // union — so narrow it by looking it up in the same list the
+              // options were rendered from, rather than asserting the type away.
+              onChange={(e) => {
+                const picked = LANGUAGES.find((l) => l.value === e.target.value);
+                if (picked) set("language", picked.value);
+              }}
             >
               {LANGUAGES.map((l) => (
                 <option key={l.value} value={l.value}>

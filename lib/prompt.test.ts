@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildPrompt, buildWindDownMessage } from "./prompt";
-import type { SessionConfig, SessionSummary } from "./types";
+import { buildFirstMessage, buildPrompt, buildWindDownMessage } from "./prompt";
+import type { Language, SessionConfig, SessionSummary } from "./types";
 
 const base: SessionConfig = {
   agentName: "Robo",
@@ -125,5 +125,63 @@ describe("no gendered pronouns anywhere in what the agent is told", () => {
 
   it("still lets the parent's own gendered directives through verbatim", () => {
     expect(buildPrompt(base, null)).toContain("She is shy and loves dinosaurs.");
+  });
+});
+
+// The agent greeted a Russian-speaking child in English: `buildFirstMessage`
+// hardcoded an English sentence, and ElevenLabs speaks the `first_message`
+// override verbatim — it does not translate it. (Probed against the live API:
+// with `language: "ru"` and an English first message, the agent says "Hi Anya!
+// I'm Robo. Are you ready to play?" out loud, while the speech recogniser is
+// already listening for Russian.)
+describe("the greeting is in the child's language", () => {
+  const LANGUAGES: Language[] = ["en", "ru", "es", "de"];
+
+  it("greets in English when the language is English", () => {
+    expect(buildFirstMessage({ ...base, language: "en" })).toBe("Hi Mia! I'm Robo. Are you ready to play?");
+  });
+
+  it("greets in Russian when the language is Russian", () => {
+    const greeting = buildFirstMessage({ ...base, language: "ru" });
+    expect(greeting).toMatch(/[Ѐ-ӿ]/); // Cyrillic
+    // Every word we wrote is Russian. The only Latin left is the names, which
+    // are whatever the parent typed and must pass through exactly as typed —
+    // a child called "Mia" is called Mia in any language.
+    const withoutNames = greeting.replace("Mia", "").replace("Robo", "");
+    expect(withoutNames).not.toMatch(/[A-Za-z]/);
+  });
+
+  it("greets in Spanish and German too", () => {
+    expect(buildFirstMessage({ ...base, language: "es" })).toContain("Hola");
+    expect(buildFirstMessage({ ...base, language: "de" })).toContain("Hallo");
+  });
+
+  // The override canary compares the agent's first spoken turn against this
+  // greeting AND requires both names to appear in it (lib/overrides.ts). A
+  // translation that dropped a name would disable the app's only defence
+  // against the child talking to an unguarded model.
+  it("always contains the child's name and the agent's name", () => {
+    for (const language of LANGUAGES) {
+      const greeting = buildFirstMessage({ ...base, language });
+      expect(greeting, language).toContain("Mia");
+      expect(greeting, language).toContain("Robo");
+    }
+  });
+
+  // Russian and Spanish inflect adjectives for gender, so a careless
+  // translation of "Are you ready?" ("Готова"/"Готов", "¿Lista?"/"¿Listo?")
+  // would assume the child's sex — which this app deliberately never does.
+  it("never assumes the child's gender", () => {
+    const ru = buildFirstMessage({ ...base, language: "ru" });
+    expect(ru).not.toMatch(/готов/i);
+    const es = buildFirstMessage({ ...base, language: "es" });
+    expect(es).not.toMatch(/list[oa]/i);
+  });
+});
+
+describe("buildPrompt states the language", () => {
+  it("tells the agent which language to speak", () => {
+    expect(buildPrompt({ ...base, language: "ru" }, null)).toContain("Russian");
+    expect(buildPrompt({ ...base, language: "de" }, null)).toContain("German");
   });
 });

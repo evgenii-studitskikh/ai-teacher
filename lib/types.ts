@@ -1,9 +1,17 @@
+// The languages the app can actually teach in. This is a closed union, not a
+// string, on purpose: every supported language needs a greeting the child hears
+// as the very first thing the agent says (see LANGUAGES in lib/prompt.ts). When
+// it was a bare `string`, the language dropdown and the greeting had no
+// relationship, so the agent greeted a Russian child in English. Adding a
+// language here without giving it a greeting is now a compile error.
+export type Language = "en" | "ru" | "es" | "de";
+
 export type SessionConfig = {
   agentName: string;
   voiceId: string;
   childName: string;
   childAge: number;
-  language: string;
+  language: Language;
   goal: string;
   directives: string;
   minutes: number;

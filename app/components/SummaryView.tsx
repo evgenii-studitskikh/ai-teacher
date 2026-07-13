@@ -2,6 +2,23 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { SavedSession, SessionSummary } from "../../lib/types";
+import styles from "./SummaryView.module.css";
+
+function Chips({ title, items, tone }: { title: string; items: string[]; tone: "good" | "accent" }) {
+  if (items.length === 0) return null;
+  return (
+    <div className={styles.chipGroup}>
+      <span className={styles.label}>{title}</span>
+      <ul className={styles.chips}>
+        {items.map((item) => (
+          <li key={item} className={`${styles.chip} ${styles[tone]}`}>
+            {item}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 type Props = {
   session: Omit<SavedSession, "summary">;
@@ -73,19 +90,29 @@ export default function SummaryView({ session, filePath, onFinish }: Props) {
     summarize();
   }, [summarize]);
 
-  if (loading) return <p>Writing the summary…</p>;
+  if (loading) return <p className={styles.status}>Writing the summary…</p>;
 
   if (error) {
     return (
-      <section>
-        <p style={{ color: "crimson" }}>{error}</p>
+      <section className={styles.screen}>
+        <p className={styles.error} role="alert">
+          {error}
+        </p>
         {/* True by construction: see the `filePath` prop above. */}
-        <p>
+        <p className={styles.note}>
           The transcript is saved — <code>{filePath}</code>. Only the summary is missing, and the
           next session will simply start without one.
         </p>
-        <button onClick={summarize}>Retry</button>
-        <button onClick={onFinish}>Done</button>
+        <div className={styles.actionsBar}>
+          <div className={styles.actions}>
+            <button className={styles.secondaryBtn} onClick={summarize}>
+              Retry
+            </button>
+            <button className={styles.primaryBtn} onClick={onFinish}>
+              Done
+            </button>
+          </div>
+        </div>
       </section>
     );
   }
@@ -93,28 +120,39 @@ export default function SummaryView({ session, filePath, onFinish }: Props) {
   if (!summary) return null;
 
   return (
-    <section>
-      <h2>How it went</h2>
-      <p>{summary.whatWeDid}</p>
-      <p>
-        <strong>Confident with:</strong> {summary.grasped.join(", ") || "—"}
-      </p>
-      <p>
-        <strong>Struggled with:</strong> {summary.struggled.join(", ") || "—"}
-      </p>
-      <p>
-        <strong>Next time:</strong> {summary.nextFocus}
-      </p>
-      <p>
-        <strong>Engagement:</strong> {summary.engagement}
-      </p>
+    <section className={styles.screen}>
       {summary.transcriptQuality === "poor" && (
-        <p style={{ color: "crimson" }}>
+        <p className={styles.asrAlarm} role="alert">
           Heads up: speech recognition struggled to understand {session.config.childName} this
           session. If this keeps happening, the transcripts are worth reading yourself.
         </p>
       )}
-      <button onClick={onFinish}>Done</button>
+
+      <article className={styles.card}>
+        <h2 className={styles.heading}>How it went</h2>
+        <p className={styles.lead}>{summary.whatWeDid}</p>
+
+        <div className={styles.row}>
+          <span className={styles.label}>Engagement</span>
+          <span className={`${styles.pill} ${styles[summary.engagement]}`}>{summary.engagement}</span>
+        </div>
+
+        <Chips title="Confident with" items={summary.grasped} tone="good" />
+        <Chips title="Still tricky" items={summary.struggled} tone="accent" />
+
+        <div className={styles.next}>
+          <span className={styles.label}>Next time</span>
+          <p>{summary.nextFocus}</p>
+        </div>
+      </article>
+
+      <div className={styles.actionsBar}>
+        <div className={styles.actions}>
+          <button className={styles.primaryBtn} onClick={onFinish}>
+            Done
+          </button>
+        </div>
+      </div>
     </section>
   );
 }

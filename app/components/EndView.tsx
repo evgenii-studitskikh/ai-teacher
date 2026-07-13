@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import SummaryView from "./SummaryView";
 import type { SavedSession } from "../../lib/types";
+import styles from "./SummaryView.module.css";
 
 type Props = {
   session: Omit<SavedSession, "summary">;
@@ -70,21 +71,29 @@ export default function EndView({ session, onFinish }: Props) {
     save();
   }, [save]);
 
-  if (state.status === "saving") return <p>Saving the transcript…</p>;
+  if (state.status === "saving") return <p className={styles.status}>Saving the transcript…</p>;
 
   if (state.status === "failed") {
     return (
-      <section>
-        <h2 style={{ color: "crimson" }}>The transcript is NOT saved</h2>
-        <p style={{ color: "crimson" }}>{state.message}</p>
-        <p>
+      <section className={styles.screen}>
+        <div className={styles.error} role="alert">
+          <h2>The transcript is NOT saved</h2>
+          <p>{state.message}</p>
+        </div>
+        <p className={styles.note}>
           This lesson is still in this browser tab and nowhere else. Do not close or reload the tab
           — that would lose it for good. Check that the app&apos;s server (<code>npm run dev</code>) is
           still running, then retry.
         </p>
         {/* Deliberately no "Done" button here: the only thing this screen can
             offer while the session is unsaved is a way to save it. */}
-        <button onClick={save}>Retry saving</button>
+        <div className={styles.actionsBar}>
+          <div className={styles.actions}>
+            <button className={styles.primaryBtn} onClick={save}>
+              Retry saving
+            </button>
+          </div>
+        </div>
       </section>
     );
   }

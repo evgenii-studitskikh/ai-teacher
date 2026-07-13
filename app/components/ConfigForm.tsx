@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { SessionConfig } from "../../lib/types";
+import styles from "./ConfigForm.module.css";
 
 type Voice = { voiceId: string; name: string; previewUrl: string };
 
@@ -16,15 +17,26 @@ const DEFAULTS: SessionConfig = {
   minutes: 10,
 };
 
+const LANGUAGES = [
+  { value: "en", label: "English" },
+  { value: "ru", label: "Russian" },
+  { value: "es", label: "Spanish" },
+  { value: "de", label: "German" },
+];
+
 export default function ConfigForm({ onStart }: { onStart: (config: SessionConfig) => void }) {
   const [config, setConfig] = useState<SessionConfig>(DEFAULTS);
   const [voices, setVoices] = useState<Voice[]>([]);
   const [voicesError, setVoicesError] = useState<string | null>(null);
   const [profileNote, setProfileNote] = useState<string | null>(null);
+  const [profiles, setProfiles] = useState<SessionConfig[]>([]);
+  const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
 
   // Every field the parent has actually touched in this sitting. Loading a
   // saved profile (below) must never overwrite one of these.
   const touched = useRef(new Set<keyof SessionConfig>());
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const formId = useId();
 
   useEffect(() => {
     // A failing /api/voices used to leave `voices` empty, the Voice dropdown
@@ -57,6 +69,16 @@ export default function ConfigForm({ onStart }: { onStart: (config: SessionConfi
             "still running, then reload this page. Until the voices load, a session cannot be started.",
         );
       });
+  }, []);
+
+  // Saved children, for the "pick up where you left off" cards above the
+  // form. A failed fetch just means no cards render — the form underneath
+  // still works exactly as it did before this existed.
+  useEffect(() => {
+    fetch("/api/profiles/list")
+      .then((r) => r.json())
+      .then((d) => setProfiles(d.profiles ?? []))
+      .catch(() => setProfiles([]));
   }, []);
 
   // Reload a saved profile when the parent finishes typing the child's name.
@@ -113,97 +135,190 @@ export default function ConfigForm({ onStart }: { onStart: (config: SessionConfi
     onStart(config);
   }
 
-  const selectedVoice = voices.find((v) => v.voiceId === config.voiceId);
+  function togglePreview(v: Voice) {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (playingVoiceId === v.voiceId) {
+      audio.pause();
+      setPlayingVoiceId(null);
+      return;
+    }
+    audio.src = v.previewUrl;
+    audio.play().catch(() => {
+      // Autoplay/decoding can fail silently on some browsers; there is
+      // nothing useful to surface for a preview button, so it just stays
+      // showing "play" rather than a stuck "playing" state.
+      setPlayingVoiceId(null);
+    });
+    setPlayingVoiceId(v.voiceId);
+  }
 
   return (
-    <form onSubmit={submit} style={{ display: "grid", gap: 12, maxWidth: 480 }}>
-      {voicesError && (
-        <p role="alert" style={{ color: "crimson", border: "1px solid crimson", padding: 12 }}>
-          {voicesError}
-        </p>
+    <>
+      {profiles.length > 0 && (
+        <section className={styles.recent} aria-label="Saved children">
+          <h2 className={styles.sectionTitle}>Pick up where you left off</h2>
+          <ul className={styles.cards}>
+            {profiles.map((p) => (
+              <li key={p.childName}>
+                {/* Tapping a card is an explicit, deliberate act by the parent —
+                    unlike the blur-triggered load below, it replaces the whole
+                    config and is deliberately NOT routed through `touched`. */}
+                <button type="button" className={styles.card} onClick={() => setConfig(p)}>
+                  <span className={styles.cardName}>{p.childName}</span>
+                  <span className={styles.cardGoal}>{p.goal}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
-      <label>
-        Agent name
-        <input value={config.agentName} onChange={(e) => set("agentName", e.target.value)} required />
-      </label>
+      <form onSubmit={submit} className={styles.form}>
+        {voicesError && (
+          <p role="alert" className={styles.error}>
+            {voicesError}
+          </p>
+        )}
 
-      <label>
-        Voice
-        <select value={config.voiceId} onChange={(e) => set("voiceId", e.target.value)} required>
-          {voices.map((v) => (
-            <option key={v.voiceId} value={v.voiceId}>{v.name}</option>
-          ))}
-        </select>
-      </label>
-      {selectedVoice && <audio controls src={selectedVoice.previewUrl} />}
+        <fieldset className={styles.group}>
+          <legend className={styles.legend}>Who</legend>
 
-      <label>
-        Child&apos;s name
-        <input
-          value={config.childName}
-          onChange={(e) => set("childName", e.target.value)}
-          onBlur={loadSaved}
-          required
-        />
-      </label>
-      {profileNote && <p style={{ color: "#555", margin: 0 }}>{profileNote}</p>}
+          <div className={styles.field}>
+            <label htmlFor={`${formId}-childName`}>Child&apos;s name</label>
+            <input
+              id={`${formId}-childName`}
+              value={config.childName}
+              onChange={(e) => set("childName", e.target.value)}
+              onBlur={loadSaved}
+              required
+            />
+          </div>
+          {profileNote && (
+            <p className={styles.note} aria-live="polite">
+              {profileNote}
+            </p>
+          )}
 
-      <label>
-        Child&apos;s age
-        <input
-          type="number"
-          min={2}
-          max={12}
-          value={config.childAge}
-          onChange={(e) => set("childAge", Number(e.target.value))}
-          required
-        />
-      </label>
+          <div className={styles.field}>
+            <label htmlFor={`${formId}-childAge`}>Child&apos;s age</label>
+            <input
+              id={`${formId}-childAge`}
+              type="number"
+              min={2}
+              max={12}
+              value={config.childAge}
+              onChange={(e) => set("childAge", Number(e.target.value))}
+              required
+            />
+          </div>
 
-      <label>
-        Language
-        <select value={config.language} onChange={(e) => set("language", e.target.value)}>
-          <option value="en">English</option>
-          <option value="ru">Russian</option>
-          <option value="es">Spanish</option>
-          <option value="de">German</option>
-        </select>
-      </label>
+          <div className={styles.field}>
+            <label htmlFor={`${formId}-language`}>Language</label>
+            <select
+              id={`${formId}-language`}
+              value={config.language}
+              onChange={(e) => set("language", e.target.value)}
+            >
+              {LANGUAGES.map((l) => (
+                <option key={l.value} value={l.value}>
+                  {l.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </fieldset>
 
-      <label>
-        Goal
-        <input
-          value={config.goal}
-          onChange={(e) => set("goal", e.target.value)}
-          placeholder="Count to 10"
-          required
-        />
-      </label>
+        <fieldset className={styles.group}>
+          <legend className={styles.legend}>What</legend>
 
-      <label>
-        Extra instructions
-        <textarea
-          value={config.directives}
-          onChange={(e) => set("directives", e.target.value)}
-          placeholder="Shy — praise them a lot. Loves dinosaurs."
-          rows={3}
-        />
-      </label>
+          <div className={styles.field}>
+            <label htmlFor={`${formId}-goal`}>Goal</label>
+            <input
+              id={`${formId}-goal`}
+              value={config.goal}
+              onChange={(e) => set("goal", e.target.value)}
+              placeholder="Count to 10"
+              required
+            />
+          </div>
 
-      <label>
-        Session length (minutes)
-        <input
-          type="number"
-          min={3}
-          max={30}
-          value={config.minutes}
-          onChange={(e) => set("minutes", Number(e.target.value))}
-          required
-        />
-      </label>
+          <div className={styles.field}>
+            <label htmlFor={`${formId}-directives`}>Extra instructions</label>
+            <textarea
+              id={`${formId}-directives`}
+              value={config.directives}
+              onChange={(e) => set("directives", e.target.value)}
+              placeholder="Shy — praise them a lot. Loves dinosaurs."
+              rows={3}
+            />
+          </div>
+        </fieldset>
 
-      <button type="submit" disabled={!config.voiceId}>Start session</button>
-    </form>
+        <fieldset className={styles.group}>
+          <legend className={styles.legend}>How</legend>
+
+          <div className={styles.field}>
+            <label htmlFor={`${formId}-agentName`}>Agent name</label>
+            <input
+              id={`${formId}-agentName`}
+              value={config.agentName}
+              onChange={(e) => set("agentName", e.target.value)}
+              required
+            />
+          </div>
+
+          <fieldset className={styles.subgroup}>
+            <legend className={styles.sublegend}>Voice</legend>
+            {voices.length === 0 && !voicesError && <p className={styles.note}>Loading voices…</p>}
+            <div className={styles.voiceList}>
+              {voices.map((v) => (
+                <div className={styles.voiceRow} key={v.voiceId}>
+                  <label className={styles.voiceOption}>
+                    <input
+                      type="radio"
+                      name={`${formId}-voice`}
+                      value={v.voiceId}
+                      checked={config.voiceId === v.voiceId}
+                      onChange={() => set("voiceId", v.voiceId)}
+                      required
+                    />
+                    <span>{v.name}</span>
+                  </label>
+                  <button
+                    type="button"
+                    className={styles.playBtn}
+                    aria-label={
+                      playingVoiceId === v.voiceId ? `Stop preview of ${v.name}` : `Play preview of ${v.name}`
+                    }
+                    onClick={() => togglePreview(v)}
+                  >
+                    {playingVoiceId === v.voiceId ? "❚❚" : "▶"}
+                  </button>
+                </div>
+              ))}
+            </div>
+            <audio ref={audioRef} onEnded={() => setPlayingVoiceId(null)} hidden />
+          </fieldset>
+
+          <div className={styles.field}>
+            <label htmlFor={`${formId}-minutes`}>Session length (minutes)</label>
+            <input
+              id={`${formId}-minutes`}
+              type="number"
+              min={3}
+              max={30}
+              value={config.minutes}
+              onChange={(e) => set("minutes", Number(e.target.value))}
+              required
+            />
+          </div>
+        </fieldset>
+
+        <button type="submit" className={styles.start} disabled={!config.voiceId}>
+          Start session
+        </button>
+      </form>
+    </>
   );
 }

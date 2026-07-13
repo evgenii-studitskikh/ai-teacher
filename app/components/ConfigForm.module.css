@@ -1,0 +1,213 @@
+/* app/components/ConfigForm.module.css */
+
+/* ---- Saved children ("Pick up where you left off") -----------------------
+   The whole point of this task: a horizontally-scrolling strip of cards sits
+   above the fold so the parent can find their kid at a glance without the
+   card list competing with the form for vertical space — the form stays the
+   one dominant element on screen. */
+.recent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+.sectionTitle {
+  font-size: var(--t-md);
+  font-weight: 800;
+  color: var(--c-ink);
+}
+.cards {
+  display: flex;
+  gap: var(--s-3);
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  list-style: none;
+  padding: var(--s-2) var(--s-1) var(--s-3);
+  margin: calc(var(--s-2) * -1) calc(var(--s-1) * -1) calc(var(--s-3) * -1);
+}
+.cards li {
+  flex: 0 0 auto;
+  width: 12.5rem;
+  scroll-snap-align: start;
+}
+
+/* Card — verbatim from the brief. */
+.card {
+  width: 100%;
+  min-height: var(--tap);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  padding: var(--s-4);
+  background: var(--c-surface);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow);
+  text-align: left;
+  transition: transform 0.15s var(--ease), box-shadow 0.15s var(--ease);
+}
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lift);
+}
+.card:active {
+  transform: translateY(1px);
+  box-shadow: var(--shadow);
+}
+.cardName {
+  font-size: var(--t-lg);
+  font-weight: 800;
+}
+.cardGoal {
+  font-size: var(--t-sm);
+  color: var(--c-ink-soft);
+}
+
+/* ---- The form -------------------------------------------------------- */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+}
+
+.group,
+.subgroup {
+  border: none;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+.subgroup {
+  gap: var(--s-3);
+}
+
+.legend,
+.sublegend {
+  padding: 0;
+  color: var(--c-ink);
+}
+.legend {
+  font-size: var(--t-lg);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.sublegend {
+  font-size: var(--t-sm);
+  font-weight: 700;
+  color: var(--c-ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.note {
+  font-size: var(--t-xs);
+  color: var(--c-ink-soft);
+}
+
+/* Field — verbatim from the brief, plus the label it didn't specify. */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.field label {
+  font-size: var(--t-sm);
+  font-weight: 700;
+  color: var(--c-ink);
+}
+.field input,
+.field select,
+.field textarea {
+  min-height: var(--tap);
+  padding: var(--s-3);
+  background: var(--c-surface);
+  border: 2px solid transparent;
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow);
+}
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  border-color: var(--c-primary);
+}
+
+/* ---- Voice picker ------------------------------------------------------
+   Each voice is a full-width row: a native radio (themed, not reinvented —
+   accent-color keeps every bit of built-in keyboard/AT behaviour) plus a
+   separate play button as a sibling, never nested inside the <label>, so a
+   tap on the button can't also fire the label's own activation. */
+.voiceList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.voiceRow {
+  display: flex;
+  align-items: stretch;
+  background: var(--c-surface);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow);
+}
+.voiceOption {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: var(--tap);
+  padding: var(--s-3);
+  font-weight: 600;
+  cursor: pointer;
+}
+.voiceOption:has(input:checked) {
+  background: color-mix(in srgb, var(--c-primary) 12%, transparent);
+  border-radius: var(--r-md) 0 0 var(--r-md);
+}
+.voiceOption input[type="radio"] {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+  accent-color: var(--c-primary);
+}
+.playBtn {
+  width: var(--tap);
+  min-height: var(--tap);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--t-md);
+  color: var(--c-primary);
+  border-radius: 0 var(--r-md) var(--r-md) 0;
+}
+.playBtn:hover {
+  background: color-mix(in srgb, var(--c-primary) 8%, transparent);
+}
+
+/* ---- Start — verbatim from the brief. --------------------------------- */
+.start {
+  position: sticky;
+  bottom: var(--s-4);
+  min-height: 56px;
+  width: 100%;
+  background: var(--c-primary);
+  color: var(--c-primary-ink);
+  font-size: var(--t-lg);
+  font-weight: 800;
+  border-radius: var(--r-full);
+  box-shadow: var(--shadow-lift);
+}
+.start:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ---- Error — verbatim from the brief. --------------------------------- */
+.error {
+  padding: var(--s-4);
+  background: var(--c-warn-bg);
+  color: var(--c-warn);
+  border-radius: var(--r-md);
+  font-weight: 600;
+}

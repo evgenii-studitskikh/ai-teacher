@@ -4,18 +4,28 @@
   /* Colour — playful, bold, and checked for WCAG AA against its background. */
   --c-bg: #fff8f0;
   --c-surface: #ffffff;
-  --c-ink: #2a1b3d;          /* body text on --c-bg / --c-surface: >12:1 */
-  --c-ink-soft: #6b5b7b;     /* secondary text: >4.5:1 */
+  --c-ink: #2a1b3d;          /* body text on --c-bg / --c-surface: 15.1:1 */
+  --c-ink-soft: #6b5b7b;     /* secondary text: 5.9:1 */
 
-  --c-primary: #6c4ae0;      /* actions; white text on it: 6.1:1 */
+  --c-primary: #6c4ae0;      /* actions; white text on it: 5.7:1 */
   --c-primary-ink: #ffffff;
   --c-accent: #ffb020;       /* highlights; NEVER used for text on light bg */
   --c-child: #22a6a1;        /* the child's transcript bubbles */
   --c-agent: #6c4ae0;        /* the agent's transcript bubbles */
 
   --c-good: #1f9d55;
-  --c-warn: #b3261e;         /* the alarms; white text on it: 5.9:1 */
+  --c-warn: #b3261e;         /* the alarms; white text on it: 6.5:1 */
   --c-warn-bg: #fdeceb;
+
+  /* Focus ring — a two-layer "double ring" so at least one layer always
+     contrasts with whatever surface the focused control sits on, without any
+     later component having to remember to pick a colour:
+       --c-focus-inner (white)  reads ~5.7:1 on --c-primary, ~6.5:1 on --c-warn
+       --c-focus-outer (--c-ink) reads ~15.1:1 on --c-bg / --c-surface
+     A component with a fill these two don't cover may still override either
+     variable locally (e.g. `.my-dark-thing { --c-focus-outer: #fff; }`). */
+  --c-focus-inner: #ffffff;
+  --c-focus-outer: var(--c-ink);
 
   /* Space — a 4px scale. */
   --s-1: 0.25rem;
@@ -85,8 +95,10 @@ textarea {
 }
 
 :focus-visible {
-  outline: 3px solid var(--c-primary);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--c-focus-inner),
+    0 0 0 5px var(--c-focus-outer);
   border-radius: var(--r-sm);
 }
 

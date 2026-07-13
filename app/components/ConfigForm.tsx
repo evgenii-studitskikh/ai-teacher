@@ -38,6 +38,17 @@ export default function ConfigForm({ onStart }: { onStart: (config: SessionConfi
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const formId = useId();
 
+  // Mirrors `config` after every commit so `loadSaved` can read the
+  // truly-latest state after its `await fetch` without going through a
+  // setState updater — updater functions get double-invoked by StrictMode.
+  // Refs must not be written during render (react-hooks/refs), so this runs
+  // in an effect rather than the component body; the assignment is
+  // idempotent, so re-running it is harmless.
+  const configRef = useRef(config);
+  useEffect(() => {
+    configRef.current = config;
+  });
+
   useEffect(() => {
     // A failing /api/voices used to leave `voices` empty, the Voice dropdown
     // blank, `voiceId` at "", and the Start button permanently disabled — with
@@ -100,19 +111,23 @@ export default function ConfigForm({ onStart }: { onStart: (config: SessionConfi
       return;
     }
 
+    // Computed purely, outside any setState updater: React 18 StrictMode
+    // double-invokes updater functions, and pushing into `applied` from
+    // inside one used to record every filled field twice ("goal, goal,
+    // minutes, minutes"). `configRef.current` gives the same up-to-date
+    // state an updater would have, without the impure side effect.
+    const current = configRef.current;
+    const next = { ...current };
     const applied: (keyof SessionConfig)[] = [];
-    setConfig((current) => {
-      const next = { ...current };
-      for (const key of Object.keys(DEFAULTS) as (keyof SessionConfig)[]) {
-        // childName is what we looked the profile up *by* — never overwrite the
-        // spelling the parent just typed with the stored one.
-        if (key === "childName" || touched.current.has(key)) continue;
-        if (saved[key] === undefined || saved[key] === current[key]) continue;
-        Object.assign(next, { [key]: saved[key] });
-        applied.push(key);
-      }
-      return next;
-    });
+    for (const key of Object.keys(DEFAULTS) as (keyof SessionConfig)[]) {
+      // childName is what we looked the profile up *by* — never overwrite the
+      // spelling the parent just typed with the stored one.
+      if (key === "childName" || touched.current.has(key)) continue;
+      if (saved[key] === undefined || saved[key] === current[key]) continue;
+      Object.assign(next, { [key]: saved[key] });
+      applied.push(key);
+    }
+    setConfig(next);
     setProfileNote(
       applied.length > 0
         ? `Filled in from ${config.childName}'s last session: ${applied.join(", ")}. Anything you already changed was left alone.`
@@ -133,6 +148,23 @@ export default function ConfigForm({ onStart }: { onStart: (config: SessionConfi
       body: JSON.stringify(config),
     });
     onStart(config);
+  }
+
+  // Tapping a saved-child card is an explicit, deliberate act by the parent —
+  // unlike the blur-triggered load above, it replaces the whole config and is
+  // deliberately NOT routed through `touched`. It DOES still need to guard
+  // against restoring a voiceId that no longer exists in the loaded `voices`
+  // list (e.g. deleted from ElevenLabs since the card was saved): a stale id
+  // is truthy, so Start would otherwise stay enabled while no radio is
+  // actually checked, and the parent would hit the browser's blank "select
+  // one of these options" bubble with no explanation.
+  function applyCard(p: SessionConfig) {
+    const voiceStillExists = voices.some((v) => v.voiceId === p.voiceId);
+    setConfig({
+      ...p,
+      voiceId: voiceStillExists ? p.voiceId : (voices[0]?.voiceId ?? ""),
+    });
+    setProfileNote(null);
   }
 
   function togglePreview(v: Voice) {
@@ -161,10 +193,7 @@ export default function ConfigForm({ onStart }: { onStart: (config: SessionConfi
           <ul className={styles.cards}>
             {profiles.map((p) => (
               <li key={p.childName}>
-                {/* Tapping a card is an explicit, deliberate act by the parent —
-                    unlike the blur-triggered load below, it replaces the whole
-                    config and is deliberately NOT routed through `touched`. */}
-                <button type="button" className={styles.card} onClick={() => setConfig(p)}>
+                <button type="button" className={styles.card} onClick={() => applyCard(p)}>
                   <span className={styles.cardName}>{p.childName}</span>
                   <span className={styles.cardGoal}>{p.goal}</span>
                 </button>
@@ -315,9 +344,16 @@ export default function ConfigForm({ onStart }: { onStart: (config: SessionConfi
           </div>
         </fieldset>
 
-        <button type="submit" className={styles.start} disabled={!config.voiceId}>
-          Start session
-        </button>
+        {/* A solid, full-bleed bar rather than a bare floating pill: content
+            scrolling behind the sticky Start button now disappears behind an
+            opaque backdrop instead of peeking through the gaps around a
+            rounded pill. See ConfigForm.module.css for the accompanying
+            .form padding that gives the last field room to scroll clear. */}
+        <div className={styles.startBar}>
+          <button type="submit" className={styles.start} disabled={!config.voiceId}>
+            Start session
+          </button>
+        </div>
       </form>
     </>
   );

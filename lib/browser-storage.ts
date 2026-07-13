@@ -21,8 +21,18 @@ function defaultStore(): Storage {
 // must never collide (this was once a real bug with an ASCII-only slug: every
 // Cyrillic name collapsed to the same value), so the name is encoded, not
 // stripped.
+//
+// The name is also Unicode-normalised (NFC) before case-folding. Without
+// this, a name typed on one device as a single composed codepoint (e.g. "й",
+// U+0439) and the same name typed on another device as a base letter plus a
+// combining mark (U+0438 U+0306) are visually identical but are different
+// strings — the child would silently fragment into two profiles.
+function normalizeChildName(childName: string): string {
+  return childName.trim().normalize("NFC").toLowerCase();
+}
+
 function profileKey(childName: string): string {
-  return PROFILE_PREFIX + encodeURIComponent(childName.trim().toLowerCase());
+  return PROFILE_PREFIX + encodeURIComponent(normalizeChildName(childName));
 }
 
 export function saveProfile(config: SessionConfig, store: Storage = defaultStore()): void {
@@ -30,7 +40,14 @@ export function saveProfile(config: SessionConfig, store: Storage = defaultStore
 }
 
 export function loadProfile(childName: string, store: Storage = defaultStore()): SessionConfig | null {
-  const raw = store.getItem(profileKey(childName));
+  let raw: string | null;
+  try {
+    raw = store.getItem(profileKey(childName));
+  } catch {
+    // Storage access itself failed (Safari private mode, storage disabled by
+    // policy, ...). A read must degrade, not crash the config screen.
+    return null;
+  }
   if (!raw) return null;
   try {
     return JSON.parse(raw) as SessionConfig;
@@ -41,9 +58,15 @@ export function loadProfile(childName: string, store: Storage = defaultStore()):
 
 function keysWithPrefix(prefix: string, store: Storage): string[] {
   const keys: string[] = [];
-  for (let i = 0; i < store.length; i++) {
-    const key = store.key(i);
-    if (key?.startsWith(prefix)) keys.push(key);
+  try {
+    for (let i = 0; i < store.length; i++) {
+      const key = store.key(i);
+      if (key?.startsWith(prefix)) keys.push(key);
+    }
+  } catch {
+    // Storage access itself failed. Callers treat an empty key list the same
+    // as "nothing saved yet", which is the correct degrade for a read.
+    return [];
   }
   return keys;
 }
@@ -88,7 +111,7 @@ export function attachSummary(id: string, summary: SessionSummary, store: Storag
 }
 
 export function loadLatestSummary(childName: string, store: Storage = defaultStore()): SessionSummary | null {
-  const wanted = childName.trim().toLowerCase();
+  const wanted = normalizeChildName(childName);
   const sessions: SavedSession[] = [];
   for (const key of keysWithPrefix(SESSION_PREFIX, store)) {
     try {
@@ -98,7 +121,10 @@ export function loadLatestSummary(childName: string, store: Storage = defaultSto
     }
   }
   const mine = sessions
-    .filter((s) => s.summary !== null && s.config.childName.trim().toLowerCase() === wanted)
-    .sort((a, b) => a.endedAt.localeCompare(b.endedAt));
+    .filter((s) => s.summary !== null && normalizeChildName(s.config.childName) === wanted)
+    // Plain lexicographic comparison, not localeCompare: this is
+    // machine-generated ISO-8601 timestamp data, not human-language text, and
+    // a locale collator is not guaranteed to sort it byte-for-byte in order.
+    .sort((a, b) => (a.endedAt < b.endedAt ? -1 : a.endedAt > b.endedAt ? 1 : 0));
   return mine.length > 0 ? (mine[mine.length - 1].summary as SessionSummary) : null;
 }

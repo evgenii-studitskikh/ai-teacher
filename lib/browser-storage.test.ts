@@ -56,6 +56,35 @@ function makeSession(endedAt: string, childName = "Mia"): Omit<SavedSession, "su
   };
 }
 
+// A `Storage` that fails on every access — Safari private mode, or storage
+// disabled by policy. Writes must still throw (the caller is responsible for
+// telling the parent the save failed); reads must degrade instead of
+// crashing the config screen.
+function throwingStore(): Storage {
+  const boom = () => {
+    throw new Error("storage unavailable");
+  };
+  return {
+    get length(): number {
+      throw new Error("storage unavailable");
+    },
+    clear: boom,
+    getItem: boom,
+    key: boom,
+    removeItem: boom,
+    setItem: boom,
+  };
+}
+
+// The same Cyrillic letter "й", typed two different ways. A phone keyboard
+// composing input can produce either form for what looks, on screen, like
+// the exact same name.
+const COMPOSED_YO = "\u0439"; // CYRILLIC SMALL LETTER SHORT I (single composed codepoint)
+const DECOMPOSED_YO = "\u0438\u0306"; // CYRILLIC SMALL LETTER I + COMBINING BREVE (canonically equivalent, visually identical to \u0439)
+
+const nameComposed = `Ма${COMPOSED_YO}я`; // "Майя" typed as a single composed \u0439
+const nameDecomposed = `Ма${DECOMPOSED_YO}я`; // the same "Майя" typed as decomposed \u0438 \u0306
+
 let store: Storage;
 beforeEach(() => {
   store = fakeStore();
@@ -85,6 +114,23 @@ describe("profiles", () => {
     saveProfile(config, store);
     store.setItem("ai-teacher:profile:broken", "{not json");
     expect(listProfiles(store).map((p) => p.childName)).toEqual(["Mia"]);
+  });
+
+  // A composed codepoint and a base-letter-plus-combining-mark sequence look
+  // identical on screen but are different strings unless normalised. A parent
+  // typing the same name on a phone one day and a laptop the next must not
+  // fragment their child into two profiles.
+  it("resolves a composed and a decomposed spelling of the same name to one profile", () => {
+    expect(nameComposed).not.toBe(nameDecomposed); // different strings, same rendered name
+    saveProfile({ ...config, childName: nameComposed }, store);
+    expect(loadProfile(nameDecomposed, store)).toEqual({ ...config, childName: nameComposed });
+  });
+
+  it("does not create a second profile when the decomposed spelling is saved second", () => {
+    saveProfile({ ...config, childName: nameComposed }, store);
+    saveProfile({ ...config, childName: nameDecomposed, childAge: 6 }, store);
+    expect(listProfiles(store)).toHaveLength(1);
+    expect(listProfiles(store)[0].childAge).toBe(6); // the second save overwrote the same profile
   });
 });
 
@@ -132,5 +178,53 @@ describe("sessions", () => {
     expect(a).not.toBe(b);
     expect(store.getItem(a)).toBeTruthy();
     expect(store.getItem(b)).toBeTruthy();
+  });
+
+  it("finds a session saved under one spelling of a name from the other spelling", () => {
+    expect(nameComposed).not.toBe(nameDecomposed); // different strings, same rendered name
+    const id = saveSession(makeSession("2026-01-01T10:00:00.000Z", nameComposed), store);
+    attachSummary(id, summary, store);
+    expect(loadLatestSummary(nameDecomposed, store)).toEqual(summary);
+  });
+
+  it("merges history from both spellings when picking the latest summary", () => {
+    const older = saveSession(makeSession("2026-01-01T10:00:00.000Z", nameComposed), store);
+    const newer = saveSession(makeSession("2026-01-02T10:00:00.000Z", nameDecomposed), store);
+    attachSummary(older, { ...summary, nextFocus: "older" }, store);
+    attachSummary(newer, { ...summary, nextFocus: "newer" }, store);
+    expect(loadLatestSummary(nameComposed, store)?.nextFocus).toBe("newer");
+    expect(loadLatestSummary(nameDecomposed, store)?.nextFocus).toBe("newer");
+  });
+});
+
+describe("degraded storage", () => {
+  // Safari private mode / storage disabled by policy can make localStorage
+  // access itself throw, not just fail to find a key. Reads must degrade to
+  // an empty result instead of taking down the config screen.
+  it("listProfiles returns [] instead of throwing when storage access fails", () => {
+    expect(listProfiles(throwingStore())).toEqual([]);
+  });
+
+  it("loadProfile returns null instead of throwing when storage access fails", () => {
+    expect(loadProfile("Mia", throwingStore())).toBeNull();
+  });
+
+  it("loadLatestSummary returns null instead of throwing when storage access fails", () => {
+    expect(loadLatestSummary("Mia", throwingStore())).toBeNull();
+  });
+
+  // Writes must still throw: swallowing a failed write would silently lose a
+  // lesson, which is worse than crashing loudly so the caller can tell the
+  // parent the transcript was not saved.
+  it("saveProfile still throws when storage access fails", () => {
+    expect(() => saveProfile(config, throwingStore())).toThrow();
+  });
+
+  it("saveSession still throws when storage access fails", () => {
+    expect(() => saveSession(makeSession("2026-01-01T10:00:00.000Z"), throwingStore())).toThrow();
+  });
+
+  it("attachSummary still throws when storage access fails", () => {
+    expect(() => attachSummary("ai-teacher:session:x", summary, throwingStore())).toThrow();
   });
 });

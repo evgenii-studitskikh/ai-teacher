@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { OVERRIDES_DISABLED_MESSAGE, firstMessageMatches, normalizeSpokenText } from "../../lib/overrides";
 import { buildFirstMessage, buildPrompt, buildWindDownMessage } from "../../lib/prompt";
 import type { SavedSession, SessionConfig, SessionSummary, TranscriptTurn } from "../../lib/types";
+import styles from "./SessionView.module.css";
 
 type Props = {
   config: SessionConfig;
@@ -287,45 +288,80 @@ function SessionInner({ config, onDone }: Props) {
     // tearing down and restarting its interval on unrelated re-renders.
   }, [conversation.status, conversation.sendContextualUpdate, conversation.endSession, config]);
 
+  // Auto-scroll the transcript to the newest turn — purely presentational,
+  // keyed on transcript.length so it fires exactly once per turn.
+  const scroller = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: "smooth" });
+  }, [transcript.length]);
+
   if (!ready) return <p>Getting ready…</p>;
 
   const mins = Math.floor(secondsLeft / 60);
   const secs = String(secondsLeft % 60).padStart(2, "0");
+  const orbState = conversation.status !== "connected" ? "idle" : conversation.isSpeaking ? "speaking" : "listening";
 
   return (
-    <section>
-      <p>
-        Status: {conversation.status} · {mins}:{secs} left
-      </p>
-      {error && <p style={{ color: "crimson" }}>{error}</p>}
+    <section className={styles.screen}>
+      {error && (
+        <p className={styles.error} role="alert">
+          {error}
+        </p>
+      )}
 
       {overridesDisabled && (
-        <section
-          role="alert"
-          style={{ border: "2px solid crimson", padding: 12, margin: "12px 0", color: "crimson" }}
-        >
-          <h2 style={{ marginTop: 0 }}>Session stopped — overrides are not enabled</h2>
+        <section role="alert" className={styles.alarm}>
+          <h2>Session stopped — overrides are not enabled</h2>
           <p>{overridesDisabled}</p>
         </section>
       )}
 
-      {conversation.status === "connected" ? (
-        <button onClick={() => conversation.endSession()}>End session</button>
-      ) : (
-        <button onClick={start} disabled={conversation.status === "connecting"}>
-          Start
-        </button>
-      )}
+      <div className={styles.stage}>
+        <svg className={styles.ring} viewBox="0 0 120 120" aria-hidden="true">
+          <circle className={styles.ringTrack} cx="60" cy="60" r="56" />
+          <circle
+            className={styles.ringFill}
+            cx="60"
+            cy="60"
+            r="56"
+            style={{
+              strokeDasharray: 2 * Math.PI * 56,
+              strokeDashoffset: 2 * Math.PI * 56 * (1 - secondsLeft / (config.minutes * 60)),
+            }}
+          />
+        </svg>
+        <div className={`${styles.orb} ${styles[orbState]}`} />
+        <p className={styles.clock}>
+          {mins}:{secs}
+        </p>
+      </div>
 
-      <h2>Transcript</h2>
-      <div style={{ maxHeight: 400, overflowY: "auto", border: "1px solid #ccc", padding: 12 }}>
-        {transcript.length === 0 && <p style={{ color: "#888" }}>Nothing said yet.</p>}
+      <p className={styles.state} role="status">
+        {conversation.status === "connecting" && "Connecting…"}
+        {orbState === "idle" && conversation.status === "disconnected" && "Ready when you are"}
+        {orbState === "listening" && `${config.agentName} is listening`}
+        {orbState === "speaking" && `${config.agentName} is talking`}
+      </p>
+
+      <div className={styles.transcript} ref={scroller}>
+        {transcript.length === 0 && <p className={styles.empty}>Nothing said yet.</p>}
         {transcript.map((turn, i) => (
-          <p key={i}>
-            <strong>{turn.role === "agent" ? config.agentName : config.childName}:</strong> {turn.text}
-          </p>
+          <div key={i} className={`${styles.bubble} ${turn.role === "agent" ? styles.fromAgent : styles.fromChild}`}>
+            <span className={styles.who}>{turn.role === "agent" ? config.agentName : config.childName}</span>
+            {turn.text}
+          </div>
         ))}
       </div>
+
+      {conversation.status === "connected" ? (
+        <button className={styles.end} onClick={() => conversation.endSession()}>
+          End session
+        </button>
+      ) : (
+        <button className={styles.start} onClick={start} disabled={conversation.status === "connecting"}>
+          {conversation.status === "connecting" ? "Connecting…" : "Start"}
+        </button>
+      )}
     </section>
   );
 }

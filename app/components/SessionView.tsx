@@ -288,14 +288,36 @@ function SessionInner({ config, onDone }: Props) {
     // tearing down and restarting its interval on unrelated re-renders.
   }, [conversation.status, conversation.sendContextualUpdate, conversation.endSession, config]);
 
-  // Auto-scroll the transcript to the newest turn — purely presentational,
-  // keyed on transcript.length so it fires exactly once per turn.
+  // Auto-scroll the transcript to the newest turn — but ONLY while the parent
+  // is already reading the newest turn.
+  //
+  // Unconditional auto-scroll turned the transcript into a trap: the ASR
+  // warning tells the parent to scroll back and read a garbled line for
+  // themselves, and the very next turn — a second or two later — yanked them
+  // back to the bottom mid-sentence. So the scroll follows the parent's intent
+  // instead of overriding it: scrolling away from the bottom detaches, and
+  // scrolling back to the bottom re-attaches.
+  //
+  // `stick` is a ref, not state: it is read inside an effect and must never
+  // itself cause a render (a re-render per scroll event, during a smooth
+  // scroll, would be miserable).
   const scroller = useRef<HTMLDivElement>(null);
+  const stick = useRef(true);
+  // "At the bottom" is deliberately fuzzy. Sub-pixel rounding, a bubble's
+  // trailing margin and the smooth-scroll animation's own final frame all land
+  // a few pixels shy of an exact match, and a strict `=== 0` test would read
+  // every one of those as "the parent has scrolled away".
+  const onTranscriptScroll = () => {
+    const el = scroller.current;
+    if (!el) return;
+    stick.current = el.scrollHeight - el.scrollTop - el.clientHeight <= 64;
+  };
   useEffect(() => {
+    if (!stick.current) return;
     scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: "smooth" });
   }, [transcript.length]);
 
-  if (!ready) return <p>Getting ready…</p>;
+  if (!ready) return <p className={styles.status}>Getting ready…</p>;
 
   const mins = Math.floor(secondsLeft / 60);
   const secs = String(secondsLeft % 60).padStart(2, "0");
@@ -346,7 +368,7 @@ function SessionInner({ config, onDone }: Props) {
         {orbState === "speaking" && `${config.agentName} is talking`}
       </p>
 
-      <div className={styles.transcript} ref={scroller}>
+      <div className={styles.transcript} ref={scroller} onScroll={onTranscriptScroll}>
         {transcript.length === 0 && <p className={styles.empty}>Nothing said yet.</p>}
         {transcript.map((turn, i) => (
           <div key={i} className={`${styles.bubble} ${turn.role === "agent" ? styles.fromAgent : styles.fromChild}`}>
@@ -362,6 +384,27 @@ function SessionInner({ config, onDone }: Props) {
             End session
           </button>
         </div>
+      ) : overridesDisabled ? (
+        // The canary has fired: the agent is running WITHOUT our system prompt,
+        // so it has none of our guardrails, and nothing this app can do will
+        // change that — the fix is in the parent's ElevenLabs dashboard.
+        // Restarting from here cannot possibly help; it just reconnects to the
+        // same unguarded agent and aborts again.
+        //
+        // Which made the redesign's Start button a trap. A full-width 56px
+        // purple pill with a lift shadow, sitting directly under the alarm, is
+        // the loudest thing on the screen and reads as "the way forward" — with
+        // a child sitting there waiting, the parent's reflex is to tap it.
+        //
+        // So while the alarm is up, Start is demoted out of the primary slot
+        // entirely: quiet, secondary, and labelled with the precondition rather
+        // than with an invitation. It stays *reachable* (once they have flipped
+        // the dashboard setting they must be able to get going without hunting
+        // for a reload), but it no longer presents itself as the answer. The
+        // canary logic itself is untouched — this is presentation only.
+        <button className={styles.startBlocked} onClick={start}>
+          Enable overrides first, then start again
+        </button>
       ) : (
         <button className={styles.start} onClick={start} disabled={conversation.status === "connecting"}>
           {conversation.status === "connecting" ? "Connecting…" : "Start"}

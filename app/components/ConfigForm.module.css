@@ -113,6 +113,20 @@
   color: var(--c-ink-soft);
 }
 
+/* A voice the parent saved was deleted from their ElevenLabs account and we
+   had to substitute another. Not an alarm (nothing is broken, and no child is
+   at risk) but emphatically not a quiet .note either — their child is about to
+   be taught by a voice they did not pick, so it carries the warning colour and
+   a real weight. */
+.voiceNote {
+  padding: var(--s-3);
+  background: var(--c-warn-bg);
+  color: var(--c-warn);
+  border-radius: var(--r-md);
+  font-size: var(--t-sm);
+  font-weight: 600;
+}
+
 /* Field — verbatim from the brief, plus the label it didn't specify. */
 .field {
   display: flex;

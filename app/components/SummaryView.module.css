@@ -43,6 +43,16 @@
 .note {
   color: var(--c-ink);
 }
+
+/* EndView's save-failure instruction now lives INSIDE the role="alert" block
+   so a screen reader actually announces it (it is the sentence that prevents
+   the loss). Visually it must still read as calm instruction, not as more
+   alarm: it keeps .note's own ink colour, sheds .error's bold weight, and gets
+   the breathing room the paragraph had when it was a sibling. */
+.error .note {
+  margin-top: var(--s-3);
+  font-weight: 400;
+}
 .note code {
   background: color-mix(in srgb, var(--c-ink) 8%, transparent);
   padding: 0.1em 0.4em;
@@ -159,6 +169,14 @@
   flex-wrap: wrap;
   gap: var(--s-2);
   list-style: none;
+}
+/* The em-dash placeholder for an empty list. Deliberately reads as a filled-in
+   answer ("none") rather than as a missing one — see the Chips comment in
+   SummaryView.tsx. */
+.chipsEmpty {
+  font-size: var(--t-md);
+  font-weight: 700;
+  color: var(--c-ink-soft);
 }
 .chip {
   padding: var(--s-1) var(--s-3);

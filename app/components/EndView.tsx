@@ -76,15 +76,23 @@ export default function EndView({ session, onFinish }: Props) {
   if (state.status === "failed") {
     return (
       <section className={styles.screen}>
+        {/* The instruction that prevents the loss lives INSIDE the alert.
+            It used to sit outside it, so a screen-reader parent heard the
+            alarm ("The transcript is NOT saved") but not the one sentence that
+            tells them what not to do about it — "Do not close or reload the
+            tab". A live region announces its own subtree and nothing else, so
+            the fix is simply that this paragraph is now part of it. The copy is
+            unchanged, and .note keeps its own plain colour so the paragraph
+            still reads as instruction rather than as more alarm. */}
         <div className={styles.error} role="alert">
           <h2>The transcript is NOT saved</h2>
           <p>{state.message}</p>
+          <p className={styles.note}>
+            This lesson is still in this browser tab and nowhere else. Do not close or reload the tab
+            — that would lose it for good. Check that the app&apos;s server (<code>npm run dev</code>) is
+            still running, then retry.
+          </p>
         </div>
-        <p className={styles.note}>
-          This lesson is still in this browser tab and nowhere else. Do not close or reload the tab
-          — that would lose it for good. Check that the app&apos;s server (<code>npm run dev</code>) is
-          still running, then retry.
-        </p>
         {/* Deliberately no "Done" button here: the only thing this screen can
             offer while the session is unsaved is a way to save it. */}
         <div className={styles.actionsBar}>

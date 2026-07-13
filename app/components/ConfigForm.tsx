@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import type { SessionConfig } from "../../lib/types";
+import { resolveVoiceSelection } from "../../lib/voice-selection";
 import styles from "./ConfigForm.module.css";
 
 type Voice = { voiceId: string; name: string; previewUrl: string };
@@ -69,8 +70,10 @@ export default function ConfigForm({ onStart }: { onStart: (config: SessionConfi
           setVoicesError("Your ElevenLabs account has no voices in it. Add one at elevenlabs.io, then reload.");
           return;
         }
+        // Deliberately does NOT touch config.voiceId. Choosing a voice is the
+        // job of the single effect below, which is the only place that knows
+        // both what is selected and whether the list has actually loaded.
         setVoices(list);
-        setConfig((c) => (c.voiceId ? c : { ...c, voiceId: list[0].voiceId }));
       })
       .catch((e: unknown) => {
         setVoices([]);
@@ -135,6 +138,32 @@ export default function ConfigForm({ onStart }: { onStart: (config: SessionConfi
     );
   }
 
+  // ---- Which voice the child actually gets -------------------------------
+  //
+  // DERIVED, every render, from the two things that decide it — never stored.
+  // That is the fix for the bug, not just a tidier shape for it.
+  //
+  // The two data sources race. /api/profiles/list is a local readdir (~1ms);
+  // /api/voices proxies a remote ElevenLabs call (hundreds of ms). So the
+  // saved-child cards are on screen and being tapped *before* `voices` exists —
+  // the cards are the first thing the parent sees, so that window is not an
+  // edge case, it is the happy path.
+  //
+  // The old code resolved the voice once, imperatively, inside applyCard: it
+  // ran `voices.some(...)` against the still-empty array, concluded the child's
+  // saved voice no longer existed, and blanked it — after which the arriving
+  // voices list saw the blank and filled it with the first voice in the
+  // account. The parent tapped "Mia" and their child got a stranger.
+  //
+  // Deriving instead means there is no stale decision to be wrong: the moment
+  // `voices` lands, this recomputes against the real list. While the list is
+  // empty, resolveVoiceSelection returns "wait" and we simply keep whatever
+  // voiceId the card restored. An unloaded list is not evidence that a voice
+  // was deleted.
+  const voiceChoice = resolveVoiceSelection(config.voiceId, voices);
+  const voiceId =
+    voiceChoice.kind === "select" || voiceChoice.kind === "substitute" ? voiceChoice.voiceId : config.voiceId;
+
   const set = <K extends keyof SessionConfig>(key: K, value: SessionConfig[K]) => {
     touched.current.add(key);
     setConfig((c) => ({ ...c, [key]: value }));
@@ -142,28 +171,33 @@ export default function ConfigForm({ onStart }: { onStart: (config: SessionConfi
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    // `voiceId`, not `config.voiceId`: the derived value is the one the radios
+    // showed the parent and the one the child will actually hear, so it is the
+    // one that gets used AND the one that gets saved back to the profile —
+    // otherwise a substituted voice would be silently un-substituted next time.
+    const chosen = { ...config, voiceId };
     await fetch("/api/profiles", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(config),
+      body: JSON.stringify(chosen),
     });
-    onStart(config);
+    onStart(chosen);
   }
 
   // Tapping a saved-child card is an explicit, deliberate act by the parent —
   // unlike the blur-triggered load above, it replaces the whole config and is
-  // deliberately NOT routed through `touched`. It DOES still need to guard
-  // against restoring a voiceId that no longer exists in the loaded `voices`
-  // list (e.g. deleted from ElevenLabs since the card was saved): a stale id
-  // is truthy, so Start would otherwise stay enabled while no radio is
-  // actually checked, and the parent would hit the browser's blank "select
-  // one of these options" bubble with no explanation.
+  // deliberately NOT routed through `touched`.
+  //
+  // The saved voiceId is restored **as-is**, with no validation here at all.
+  // This function runs at the exact moment the voices list is least likely to
+  // exist (the cards are the first thing on screen, and they are fed by a
+  // local readdir that beats the remote ElevenLabs call every time), so any
+  // check made here would be a check against an empty array — which is how the
+  // child used to end up with a different teacher's voice. Validation belongs
+  // to the effect above, which runs again the instant the real list lands and
+  // which announces any substitution it has to make.
   function applyCard(p: SessionConfig) {
-    const voiceStillExists = voices.some((v) => v.voiceId === p.voiceId);
-    setConfig({
-      ...p,
-      voiceId: voiceStillExists ? p.voiceId : (voices[0]?.voiceId ?? ""),
-    });
+    setConfig({ ...p });
     setProfileNote(null);
   }
 
@@ -300,6 +334,20 @@ export default function ConfigForm({ onStart }: { onStart: (config: SessionConfi
           <fieldset className={styles.subgroup}>
             <legend className={styles.sublegend}>Voice</legend>
             {voices.length === 0 && !voicesError && <p className={styles.note}>Loading voices…</p>}
+            {/* A swapped voice is the one thing here the parent must not miss:
+                their child is about to be taught by a voice they did not
+                choose. This is the ONLY circumstance in which the app changes
+                a saved voice, and it never does it silently. Derived, like the
+                selection itself, so it appears exactly when a substitution is
+                in force and vanishes the moment the parent picks a voice
+                themselves. role="status" announces it without stealing focus. */}
+            {voiceChoice.kind === "substitute" && (
+              <p role="status" className={styles.voiceNote}>
+                The voice saved for this child is no longer in your ElevenLabs account, so{" "}
+                {voiceChoice.name} is selected instead. Pick a different one below if you&apos;d
+                rather — preview them with ▶.
+              </p>
+            )}
             <div className={styles.voiceList}>
               {voices.map((v) => (
                 <div className={styles.voiceRow} key={v.voiceId}>
@@ -308,7 +356,7 @@ export default function ConfigForm({ onStart }: { onStart: (config: SessionConfi
                       type="radio"
                       name={`${formId}-voice`}
                       value={v.voiceId}
-                      checked={config.voiceId === v.voiceId}
+                      checked={voiceId === v.voiceId}
                       onChange={() => set("voiceId", v.voiceId)}
                       required
                     />
@@ -349,8 +397,16 @@ export default function ConfigForm({ onStart }: { onStart: (config: SessionConfi
             opaque backdrop instead of peeking through the gaps around a
             rounded pill. See ConfigForm.module.css for the accompanying
             .form padding that gives the last field room to scroll clear. */}
+        {/* Start is also gated on the voices list existing, not just on some
+            voiceId being set. A voiceId restored from a card is unverified
+            until the list lands: starting in that window would either send
+            ElevenLabs a voice that has since been deleted, or submit a form
+            whose radio group has no options rendered to satisfy `required`.
+            The list is a few hundred milliseconds away — the gate is invisible
+            in practice, and it makes "Start is enabled" mean "a real, existing
+            voice is selected", which is the only thing it should ever mean. */}
         <div className={styles.startBar}>
-          <button type="submit" className={styles.start} disabled={!config.voiceId}>
+          <button type="submit" className={styles.start} disabled={!voiceId || voices.length === 0}>
             Start session
           </button>
         </div>

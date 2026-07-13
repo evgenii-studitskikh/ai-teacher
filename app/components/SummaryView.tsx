@@ -4,18 +4,32 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { SavedSession, SessionSummary } from "../../lib/types";
 import styles from "./SummaryView.module.css";
 
+// An EMPTY list is a result, not an absence — and on the "Confident with" row
+// it is the most actionable signal the whole report can carry: the child
+// grasped nothing this session. Returning null on an empty array deleted the
+// row outright, which left the parent unable to tell that finding from "Claude
+// didn't fill this field in". So the row always renders, with an em-dash
+// standing in for the chips, exactly as the old UI did.
 function Chips({ title, items, tone }: { title: string; items: string[]; tone: "good" | "accent" }) {
-  if (items.length === 0) return null;
   return (
     <div className={styles.chipGroup}>
       <span className={styles.label}>{title}</span>
-      <ul className={styles.chips}>
-        {items.map((item) => (
-          <li key={item} className={`${styles.chip} ${styles[tone]}`}>
-            {item}
-          </li>
-        ))}
-      </ul>
+      {items.length === 0 ? (
+        <p className={styles.chipsEmpty}>—</p>
+      ) : (
+        // role="list" is required because .chips sets `list-style: none`, which
+        // makes Safari/VoiceOver drop the list semantics entirely.
+        <ul role="list" className={styles.chips}>
+          {items.map((item, i) => (
+            // Claude can return the same string twice; `key={item}` would then
+            // collide. The index disambiguates duplicates, and this list is
+            // never reordered or filtered, so it is a stable key here.
+            <li key={`${item}-${i}`} className={`${styles.chip} ${styles[tone]}`}>
+              {item}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

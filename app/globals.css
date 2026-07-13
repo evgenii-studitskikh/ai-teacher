@@ -10,6 +10,11 @@
   --c-primary: #6c4ae0;      /* actions; white text on it: 5.7:1 */
   --c-primary-ink: #ffffff;
   --c-accent: #ffb020;       /* highlights; NEVER used for text on light bg */
+  /* The same amber, carried down until it is legible as a *shape* on --c-bg:
+     4.7:1, clearing WCAG 1.4.11's 3:1 for non-text indicators (--c-accent
+     itself manages only 1.75:1 there). For anything whose meaning is carried
+     by its colour rather than sitting behind text — the countdown ring. */
+  --c-accent-strong: #b45309;
   --c-child: #22a6a1;        /* the child's transcript bubbles */
   --c-agent: #6c4ae0;        /* the agent's transcript bubbles */
 
@@ -49,7 +54,6 @@
   --t-md: 1.0625rem;
   --t-lg: 1.375rem;
   --t-xl: 1.875rem;
-  --t-xxl: 2.5rem;
 
   --shadow: 0 2px 0 rgba(42, 27, 61, 0.08), 0 8px 24px rgba(42, 27, 61, 0.08);
   --shadow-lift: 0 4px 0 rgba(42, 27, 61, 0.12), 0 12px 32px rgba(42, 27, 61, 0.12);

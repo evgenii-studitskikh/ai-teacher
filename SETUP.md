@@ -38,7 +38,7 @@ exactly which toggle to flip.
 ## 4. Set the passcode (CRITICAL — the app is unusable without it)
 
 The whole app — the page and every `/api/*` route — sits behind a single
-shared passcode, checked by `middleware.ts`. Set `APP_PASSCODE` to any
+shared passcode, checked by `proxy.ts`. Set `APP_PASSCODE` to any
 value you like **both** in your local `.env.local` **and** in the Vercel
 project's environment variables (Project Settings → Environment Variables)
 before deploying.

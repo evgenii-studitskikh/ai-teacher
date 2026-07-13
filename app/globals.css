@@ -94,12 +94,14 @@ textarea {
   color: inherit;
 }
 
+/* A box-shadow ring already follows the element's own border-radius, so we
+   must NOT set one here: doing so would square off the pill-shaped Start and
+   End buttons the instant they take focus. */
 :focus-visible {
   outline: none;
   box-shadow:
     0 0 0 2px var(--c-focus-inner),
     0 0 0 5px var(--c-focus-outer);
-  border-radius: var(--r-sm);
 }
 
 /* Motion is used to convey state, never to decorate — and it is always

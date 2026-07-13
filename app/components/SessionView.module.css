@@ -1,0 +1,281 @@
+/* app/components/SessionView.module.css */
+
+/* The screen the parent watches while their child talks. Laid out as one
+   flex column: fixed-size orb/state up top, the transcript taking whatever
+   is left (it is the largest region by area — it's where speech-recognition
+   failure is spotted), and the End control anchored at the bottom. */
+.screen {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  /* Lets .transcript's own flex:1 + overflow-y:auto actually take effect
+     instead of being pushed to its content size — the classic flex-column
+     scrolling trap. */
+  min-height: 0;
+  gap: var(--s-4);
+}
+
+/* ---- Status text ("Getting ready…") -------------------------------------
+   The pre-mount wait while the previous summary is fetched. Was the one
+   unstyled leftover in the app — a bare browser-default <p>. Same quiet,
+   centered treatment as SummaryView's .status, which is the same wait. */
+.status {
+  text-align: center;
+  font-size: var(--t-md);
+  font-weight: 700;
+  color: var(--c-ink-soft);
+  padding: var(--s-6) 0;
+}
+
+/* ---- Errors ------------------------------------------------------------
+   Mic-permission / signed-URL failures. Same visual language as the rest of
+   the app's inline errors (see ConfigForm.module.css .error) — serious, but
+   one notch below the overrides alarm below. */
+.error {
+  padding: var(--s-4);
+  background: var(--c-warn-bg);
+  color: var(--c-warn);
+  border-radius: var(--r-md);
+  font-weight: 600;
+}
+
+/* ---- The overrides-disabled alarm ---------------------------------------
+   Tells the parent their child would otherwise be talking to an unguarded
+   model. Deliberately heavier than .error: a thick border and the same
+   red carried through text, not just a tint, so the playful palette can't
+   read this as just more colour. */
+.alarm {
+  padding: var(--s-5);
+  background: var(--c-warn-bg);
+  border: 3px solid var(--c-warn);
+  border-radius: var(--r-lg);
+  color: var(--c-warn);
+}
+.alarm h2 {
+  font-size: var(--t-lg);
+  font-weight: 800;
+  margin-bottom: var(--s-2);
+}
+
+/* ---- The orb and countdown ring ----------------------------------------
+   The hero. Three states driven by real data: idle (not connected),
+   listening, speaking (conversation.isSpeaking from the SDK). */
+.stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: var(--s-4);
+  flex-shrink: 0;
+}
+.ring {
+  width: 240px;
+  height: 240px;
+  transform: rotate(-90deg);
+}
+.ringTrack {
+  fill: none;
+  stroke: rgba(42, 27, 61, 0.08);
+  stroke-width: 8;
+}
+/* The countdown ring is a non-text indicator: WCAG 1.4.11 wants >=3:1 against
+   what sits behind it. --c-accent (#ffb020) on --c-bg (#fff8f0) manages only
+   1.75:1 — an amber ring on a cream page. It was getting away with it purely
+   because the mm:ss clock repeats the same information in text, but the ring
+   exists precisely so the remaining time is legible AT A GLANCE, from across
+   the room, without reading digits — which is exactly the reading the low
+   contrast destroys. --c-accent-strong is the same hue carried down to a
+   4.7:1 burnt amber (see globals.css). */
+.ringFill {
+  fill: none;
+  stroke: var(--c-accent-strong);
+  stroke-width: 8;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s linear;
+}
+.orb {
+  position: absolute;
+  width: 168px;
+  height: 168px;
+  border-radius: var(--r-full);
+  background: radial-gradient(circle at 35% 30%, #8f6cff, var(--c-primary));
+  box-shadow: var(--shadow-lift);
+}
+.idle {
+  background: radial-gradient(circle at 35% 30%, #cfc6e8, #a99cc4);
+}
+.listening {
+  animation: breathe 3.6s var(--ease) infinite;
+}
+.speaking {
+  animation: pulse 0.9s var(--ease) infinite;
+}
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.03);
+  }
+}
+@keyframes pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.07);
+  }
+}
+.clock {
+  position: absolute;
+  bottom: -0.25rem;
+  font-size: var(--t-lg);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--c-ink);
+}
+
+/* On short/narrow viewports the orb's fixed 240px box crowds out the
+   transcript — the transcript is where the parent spots a speech-recognition
+   failure, the single biggest risk here, so it must stay the dominant
+   region by area. Shrink the ring/orb and tighten .screen's rhythm instead
+   of shrinking the transcript's own min-height. The orb stays a clearly
+   readable glance-target, just a smaller one. Laptop-width, tall viewports
+   are untouched. */
+@media (max-width: 400px), (max-height: 720px) {
+  .screen {
+    gap: var(--s-3);
+  }
+  .stage {
+    padding: var(--s-2);
+  }
+  .ring {
+    width: 152px;
+    height: 152px;
+  }
+  .orb {
+    width: 108px;
+    height: 108px;
+  }
+}
+
+.state {
+  text-align: center;
+  font-size: var(--t-md);
+  font-weight: 700;
+  color: var(--c-ink-soft);
+  min-height: 1.5em;
+  flex-shrink: 0;
+}
+
+/* ---- The transcript, as chat bubbles ------------------------------------
+   The largest region of the screen by area, on purpose. */
+.transcript {
+  flex: 1;
+  min-height: 12rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-4);
+  background: var(--c-surface);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow);
+}
+.empty {
+  margin: auto;
+  color: var(--c-ink-soft);
+  font-size: var(--t-sm);
+}
+.bubble {
+  max-width: 85%;
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-lg);
+  font-size: var(--t-sm);
+  overflow-wrap: anywhere;
+}
+.fromAgent {
+  align-self: flex-start;
+  background: color-mix(in srgb, var(--c-agent) 12%, white);
+  border-bottom-left-radius: var(--r-sm);
+}
+.fromChild {
+  align-self: flex-end;
+  background: color-mix(in srgb, var(--c-child) 16%, white);
+  border-bottom-right-radius: var(--r-sm);
+}
+.who {
+  display: block;
+  font-size: var(--t-xs);
+  font-weight: 800;
+  color: var(--c-ink-soft);
+  margin-bottom: var(--s-1);
+}
+
+/* ---- Start / End ---------------------------------------------------------
+   Start: the session hasn't begun yet, so it sits inline like the rest of
+   the app's primary actions (ConfigForm's .start). End: sticky, unmissable,
+   and reachable throughout the call — a parent must never have to hunt for
+   it while their child is mid-sentence. */
+.start {
+  flex-shrink: 0;
+  min-height: 56px;
+  width: 100%;
+  background: var(--c-primary);
+  color: var(--c-primary-ink);
+  font-size: var(--t-lg);
+  font-weight: 800;
+  border-radius: var(--r-full);
+  box-shadow: var(--shadow-lift);
+}
+.start:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+/* Start, demoted — shown INSTEAD of .start while the overrides alarm is up.
+   Same size and position (so it is still easy to reach once the parent has
+   actually fixed their dashboard) but stripped of everything that made the
+   primary pill inviting: no purple fill, no lift shadow. It reads as the quiet
+   secondary action it is, and the alarm above it stays the loudest thing on
+   the screen — which is the whole point, because tapping this before fixing
+   the dashboard cannot do anything but abort again. Same secondary recipe as
+   SummaryView.module.css's .secondaryBtn. */
+.startBlocked {
+  flex-shrink: 0;
+  min-height: 56px;
+  width: 100%;
+  background: var(--c-surface);
+  color: var(--c-primary);
+  border: 2px solid var(--c-primary);
+  font-size: var(--t-md);
+  font-weight: 700;
+  border-radius: var(--r-full);
+  box-shadow: var(--shadow);
+}
+/* .end sits inside .endBar, a sticky full-bleed backdrop — same pattern as
+   ConfigForm's .startBar, for the same reason: a bare sticky pill left
+   transcript content visible through the gaps around it as the page
+   scrolled. The bar bleeds to the viewport edges, cancelling .inner's own
+   horizontal padding (var(--s-4) — see app.module.css), and its own bottom
+   margin/padding pair cancels only its own bottom offset, not .inner's
+   larger bottom padding underneath it. */
+.endBar {
+  flex-shrink: 0;
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  margin: 0 calc(var(--s-4) * -1) calc(var(--s-4) * -1);
+  padding: var(--s-4) var(--s-4) calc(var(--s-4) + env(safe-area-inset-bottom));
+  background: linear-gradient(to bottom, transparent, var(--c-bg) var(--s-4));
+}
+.end {
+  min-height: 56px;
+  width: 100%;
+  background: var(--c-warn);
+  color: white;
+  font-size: var(--t-lg);
+  font-weight: 800;
+  border-radius: var(--r-full);
+  box-shadow: var(--shadow-lift);
+}

@@ -1,0 +1,216 @@
+/* app/components/SummaryView.module.css */
+
+/* Shared by EndView (the save step) and SummaryView (the summarize step and
+   the report card) — together they are one screen: the parent's after-lesson
+   debrief. Same flex-column recipe as SessionView's .screen. */
+.screen {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: var(--s-4);
+}
+
+/* ---- Status text (saving / writing the summary) -------------------------
+   Same quiet, centered treatment as SessionView's .state — this is a wait,
+   not a result, so it stays out of the way. */
+.status {
+  text-align: center;
+  font-size: var(--t-md);
+  font-weight: 700;
+  color: var(--c-ink-soft);
+  padding: var(--s-6) 0;
+}
+
+/* ---- Error — verbatim recipe from ConfigForm's / SessionView's .error. --
+   One notch below the ASR alarm below: red text on a red tint, not the
+   heavier bordered treatment, because this is a save/summarize failure, not
+   the project's one dedicated instrument for the ASR risk. */
+.error {
+  padding: var(--s-4);
+  background: var(--c-warn-bg);
+  color: var(--c-warn);
+  border-radius: var(--r-md);
+  font-weight: 600;
+}
+.error h2 {
+  font-size: var(--t-lg);
+  font-weight: 800;
+  margin-bottom: var(--s-1);
+}
+
+/* The reassurance text ("the transcript IS saved") is deliberately plain —
+   never styled as an alarm, because it isn't one. */
+.note {
+  color: var(--c-ink);
+}
+
+/* EndView's save-failure instruction now lives INSIDE the role="alert" block
+   so a screen reader actually announces it (it is the sentence that prevents
+   the loss). Visually it must still read as calm instruction, not as more
+   alarm: it keeps .note's own ink colour, sheds .error's bold weight, and gets
+   the breathing room the paragraph had when it was a sibling. */
+.error .note {
+  margin-top: var(--s-3);
+  font-weight: 400;
+}
+.note code {
+  background: color-mix(in srgb, var(--c-ink) 8%, transparent);
+  padding: 0.1em 0.4em;
+  border-radius: var(--r-sm);
+  font-size: 0.9em;
+  overflow-wrap: anywhere;
+}
+
+/* ---- Actions -------------------------------------------------------------
+   Sticky, full-bleed bottom bar — the same pattern as ConfigForm's .startBar
+   and SessionView's .endBar, for the same reason: the parent's next action
+   stays reachable without hunting for it, and content passes fully behind a
+   deliberate bar instead of merging with a floating button. */
+.actionsBar {
+  flex-shrink: 0;
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  margin: 0 calc(var(--s-4) * -1) calc(var(--s-4) * -1);
+  padding: var(--s-4) var(--s-4) calc(var(--s-4) + env(safe-area-inset-bottom));
+  background: linear-gradient(to bottom, transparent, var(--c-bg) var(--s-4));
+}
+.actions {
+  display: flex;
+  gap: var(--s-3);
+}
+/* A single button inside .actions (EndView's "Retry saving", SummaryView's
+   solo "Done") fills the row via flex:1 on its own, so both the one-button
+   and two-button cases share this markup. */
+.actions > button {
+  flex: 1;
+  min-height: 56px;
+  border-radius: var(--r-full);
+  font-size: var(--t-lg);
+  font-weight: 800;
+}
+.primaryBtn {
+  background: var(--c-primary);
+  color: var(--c-primary-ink);
+  box-shadow: var(--shadow-lift);
+}
+.secondaryBtn {
+  background: var(--c-surface);
+  color: var(--c-primary);
+  border: 2px solid var(--c-primary);
+  box-shadow: var(--shadow);
+}
+
+/* ---- The report card — verbatim structure from the brief. --------------- */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  padding: var(--s-5);
+  background: var(--c-surface);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow);
+}
+.heading {
+  font-size: var(--t-xl);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.lead {
+  font-size: var(--t-md);
+  color: var(--c-ink);
+}
+
+.label {
+  font-size: var(--t-xs);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--c-ink-soft);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+/* Engagement pill and the two chip tones all use a light tint background
+   with the card's own --c-ink for the text (same recipe as the transcript
+   bubbles in SessionView.module.css) rather than colouring the text itself
+   — that keeps every one of these at a very high, guaranteed-AA contrast
+   regardless of which tint sits behind it. */
+.pill {
+  padding: var(--s-1) var(--s-3);
+  border-radius: var(--r-full);
+  font-size: var(--t-sm);
+  font-weight: 800;
+  color: var(--c-ink);
+  text-transform: capitalize;
+}
+.low {
+  background: color-mix(in srgb, var(--c-ink-soft) 16%, white);
+}
+.medium {
+  background: color-mix(in srgb, var(--c-accent) 35%, white);
+}
+.high {
+  background: color-mix(in srgb, var(--c-good) 20%, white);
+}
+
+.chipGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  list-style: none;
+}
+/* The em-dash placeholder for an empty list. Deliberately reads as a filled-in
+   answer ("none") rather than as a missing one — see the Chips comment in
+   SummaryView.tsx. */
+.chipsEmpty {
+  font-size: var(--t-md);
+  font-weight: 700;
+  color: var(--c-ink-soft);
+}
+.chip {
+  padding: var(--s-1) var(--s-3);
+  border-radius: var(--r-full);
+  font-size: var(--t-sm);
+  font-weight: 700;
+  color: var(--c-ink);
+}
+.good {
+  background: color-mix(in srgb, var(--c-good) 16%, white);
+}
+.accent {
+  background: color-mix(in srgb, var(--c-accent) 35%, white);
+}
+
+.next {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  padding-top: var(--s-3);
+  border-top: 1px solid color-mix(in srgb, var(--c-ink) 10%, transparent);
+}
+
+/* ---- The ASR alarm — verbatim from the brief. ----------------------------
+   The project's single instrument for its largest risk: speech recognition
+   that could not understand the child. Deliberately heavier than .error
+   above and kept OUTSIDE .card — a thick border and the same red carried
+   through text, not just a tint, so the playful, chip-covered card next to
+   it can never read this as just another coloured pill. */
+.asrAlarm {
+  padding: var(--s-5);
+  background: var(--c-warn-bg);
+  border: 3px solid var(--c-warn);
+  border-radius: var(--r-lg);
+  color: var(--c-warn);
+  font-weight: 600;
+}

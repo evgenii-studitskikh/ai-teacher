@@ -1,0 +1,121 @@
+/* app/globals.css */
+
+:root {
+  /* Colour — playful, bold, and checked for WCAG AA against its background. */
+  --c-bg: #fff8f0;
+  --c-surface: #ffffff;
+  --c-ink: #2a1b3d;          /* body text on --c-bg / --c-surface: 15.1:1 */
+  --c-ink-soft: #6b5b7b;     /* secondary text: 5.9:1 */
+
+  --c-primary: #6c4ae0;      /* actions; white text on it: 5.7:1 */
+  --c-primary-ink: #ffffff;
+  --c-accent: #ffb020;       /* highlights; NEVER used for text on light bg */
+  /* The same amber, carried down until it is legible as a *shape* on --c-bg:
+     4.7:1, clearing WCAG 1.4.11's 3:1 for non-text indicators (--c-accent
+     itself manages only 1.75:1 there). For anything whose meaning is carried
+     by its colour rather than sitting behind text — the countdown ring. */
+  --c-accent-strong: #b45309;
+  --c-child: #22a6a1;        /* the child's transcript bubbles */
+  --c-agent: #6c4ae0;        /* the agent's transcript bubbles */
+
+  --c-good: #1f9d55;
+  --c-warn: #b3261e;         /* the alarms; white text on it: 6.5:1 */
+  --c-warn-bg: #fdeceb;
+
+  /* Focus ring — a two-layer "double ring" so at least one layer always
+     contrasts with whatever surface the focused control sits on, without any
+     later component having to remember to pick a colour:
+       --c-focus-inner (white)  reads ~5.7:1 on --c-primary, ~6.5:1 on --c-warn
+       --c-focus-outer (--c-ink) reads ~15.1:1 on --c-bg / --c-surface
+     A component with a fill these two don't cover may still override either
+     variable locally (e.g. `.my-dark-thing { --c-focus-outer: #fff; }`). */
+  --c-focus-inner: #ffffff;
+  --c-focus-outer: var(--c-ink);
+
+  /* Space — a 4px scale. */
+  --s-1: 0.25rem;
+  --s-2: 0.5rem;
+  --s-3: 0.75rem;
+  --s-4: 1rem;
+  --s-5: 1.5rem;
+  --s-6: 2rem;
+  --s-7: 3rem;
+
+  /* Radius — big and round; this is where much of the "playful" lives. */
+  --r-sm: 0.5rem;
+  --r-md: 1rem;
+  --r-lg: 1.5rem;
+  --r-full: 999px;
+
+  /* Type */
+  --font: var(--font-rounded), system-ui, sans-serif;
+  --t-xs: 0.8125rem;
+  --t-sm: 0.9375rem;
+  --t-md: 1.0625rem;
+  --t-lg: 1.375rem;
+  --t-xl: 1.875rem;
+
+  --shadow: 0 2px 0 rgba(42, 27, 61, 0.08), 0 8px 24px rgba(42, 27, 61, 0.08);
+  --shadow-lift: 0 4px 0 rgba(42, 27, 61, 0.12), 0 12px 32px rgba(42, 27, 61, 0.12);
+
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  --tap: 44px; /* minimum touch target */
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  height: 100%;
+}
+
+body {
+  min-height: 100%;
+  background: var(--c-bg);
+  color: var(--c-ink);
+  font-family: var(--font);
+  font-size: var(--t-md);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+/* A box-shadow ring already follows the element's own border-radius, so we
+   must NOT set one here: doing so would square off the pill-shaped Start and
+   End buttons the instant they take focus. */
+:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--c-focus-inner),
+    0 0 0 5px var(--c-focus-outer);
+}
+
+/* Motion is used to convey state, never to decorate — and it is always
+   optional. Everything animated in this app must survive this rule. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

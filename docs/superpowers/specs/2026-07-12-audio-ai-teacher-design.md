@@ -39,7 +39,9 @@ This means there is no agent-management layer to build. "Configuring the agent" 
 
 ### ElevenLabs owns the real-time loop
 
-STT, the LLM, TTS, and turn-taking all happen inside the ElevenLabs Agents Platform session. Audio never routes through our server. Our server exists only to mint signed URLs and to call Claude for summaries.
+STT, the LLM, TTS, and turn-taking all happen inside the ElevenLabs Agents Platform session. Audio never routes through our server. Our server exists only to mint signed URLs, to persist sessions, and to call Claude for summaries.
+
+The transport is a **WebSocket**: the client starts the session with a signed URL (`startSession({ signedUrl })`), and passing a signed URL is what selects the websocket connection type in the SDK. (Not WebRTC — that path takes a conversation token instead.)
 
 ### Claude owns the summary
 
@@ -61,7 +63,8 @@ Both the ElevenLabs and Anthropic keys live in `.env.local` and are used server-
 | `lib/storage.ts` | Read/write profiles and sessions as JSON files. The only disk access. | fs |
 | `app/api/signed-url/route.ts` | Mint an ElevenLabs signed URL. | ElevenLabs key |
 | `app/api/voices/route.ts` | List the user's ElevenLabs voices for the picker. | ElevenLabs key |
-| `app/api/summarize/route.ts` | Transcript → Claude → structured summary → disk. | Anthropic key, storage |
+| `app/api/sessions/route.ts` | Write a finished session's transcript to disk (no summary yet); return its path. | storage |
+| `app/api/summarize/route.ts` | Transcript → Claude → structured summary → attached to that saved session. | Anthropic key, storage |
 | Config form (UI) | Collect and persist `SessionConfig`. | voices API, storage |
 | Session view (UI) | Live transcript, timer, End button. | `@elevenlabs/react` |
 | Summary view (UI) | Show the post-session summary. | summarize API |
@@ -70,13 +73,14 @@ Both the ElevenLabs and Anthropic keys live in `.env.local` and are used server-
 
 1. Parent fills the config form. Saved to `data/profiles/<child>.json` for reuse.
 2. Parent hits Start. Client requests a signed URL from `/api/signed-url`.
-3. Client calls `startSession()` with the signed URL, overrides (rendered prompt, first message, language, `voice_id`), and dynamic variables.
-4. Conversation runs. ElevenLabs handles mic, STT, LLM, TTS, turn-taking.
+3. Client calls `startSession()` over the websocket with the signed URL and the overrides (rendered prompt, first message, language, `voice_id`). No dynamic variables are sent: `buildPrompt`/`buildFirstMessage` interpolate the config directly, so there are no placeholders left to fill.
+4. Conversation runs. ElevenLabs handles mic, STT, LLM, TTS, turn-taking. The agent's first turn is checked against the first message we overrode: if it does not match, the overrides are not enabled on the agent, the session is aborted at once and the parent is told what to enable (see Safety).
 5. Client renders the live transcript from SDK message events; an End session button is always visible.
 6. At 80% of `minutes`, the client sends a contextual update to the session: time is nearly up, begin wrapping up.
 7. Session ends — by the child, by the clock, or by the parent.
-8. Client POSTs the transcript to `/api/summarize`. Server writes `data/sessions/<childName>-<timestamp>.json` containing transcript + summary.
-9. The next session for that child loads the newest summary and injects it as `last_session_summary`.
+8. Client POSTs the transcript to `/api/sessions`, which writes `data/sessions/<childName>--<timestamp>.json` (transcript, `summary: null`) and returns its path. Nothing else happens until this succeeds; if it fails, the parent is told the transcript is *not* saved and can retry.
+9. Only then does the client POST to `/api/summarize` with that path. Claude's summary is attached to the same file.
+10. The next session for that child loads the newest summary and injects it into the prompt as the "Last time" section.
 
 ## Data model
 
@@ -137,6 +141,10 @@ The agent has no clock. The wind-down is driven by a client-side timer sending a
 ## Safety
 
 Prompt-level guardrails (above) plus a hard stop: the live transcript is always on screen and an End session button is always visible. The parent is present. No moderation model in the MVP.
+
+Every guardrail reaches the agent as an *override*, and an agent whose dashboard Security settings do not permit overrides ignores them silently — the child would then be talking to the raw default agent with no guardrails at all. So the client runs a canary: the agent's first turn must be the first message we sent (compared tolerantly — case, punctuation and whitespace insensitive, but the child's and agent's names must appear). A mismatch aborts the session immediately and tells the parent which dashboard setting to enable. Fail closed.
+
+The prompt never assumes the child's gender: there is no gender field, and every string the agent is given uses the child's name or singular "they". A unit test asserts the prompt contains no gendered pronoun.
 
 ## Error handling
 

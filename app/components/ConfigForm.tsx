@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import type { SessionConfig } from "../../lib/types";
+import type { SessionConfig, ToyInfo } from "../../lib/types";
 import { LANGUAGE_OPTIONS } from "../../lib/prompt";
 import { loadProfile, listProfiles, saveProfile } from "../../lib/browser-storage";
 import { resolveVoiceSelection } from "../../lib/voice-selection";
@@ -26,7 +26,7 @@ const DEFAULTS: SessionConfig = {
 // these were two unrelated lists.
 const LANGUAGES = LANGUAGE_OPTIONS;
 
-export default function ConfigForm({ onStart }: { onStart: (config: SessionConfig) => void }) {
+export default function ConfigForm({ onStart }: { onStart: (config: SessionConfig) => void; toy?: ToyInfo }) {
   const [config, setConfig] = useState<SessionConfig>(DEFAULTS);
   const [voices, setVoices] = useState<Voice[]>([]);
   const [voicesError, setVoicesError] = useState<string | null>(null);

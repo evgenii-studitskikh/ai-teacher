@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildFirstMessage, buildPrompt, buildWindDownMessage } from "./prompt";
-import type { Language, SessionConfig, SessionSummary } from "./types";
+import type { Language, SessionConfig, SessionSummary, ToyInfo } from "./types";
 
 const base: SessionConfig = {
   agentName: "Robo",
@@ -11,6 +11,28 @@ const base: SessionConfig = {
   goal: "Count to 10",
   directives: "She is shy and loves dinosaurs.",
   minutes: 10,
+};
+
+const toy: ToyInfo = {
+  name: "Buzz Lightyear",
+  character: "a brave space-ranger action figure",
+  personality: "confident, heroic, a little goofy",
+  howToPlay: "blast off on pretend missions, count stars, rescue other toys",
+};
+
+const povConfig: SessionConfig = {
+  ...base,
+  agentName: "Buzz Lightyear", // POV: the agent speaks as the toy
+  goal: "have fun exploring space together",
+  directives: "Loves rockets. Praise a lot.",
+  toy,
+  toyMode: "pov",
+};
+
+const thirdConfig: SessionConfig = {
+  ...povConfig,
+  agentName: "Robo", // 3rd person: the guide keeps its own name
+  toyMode: "third-person",
 };
 
 describe("buildPrompt", () => {
@@ -184,4 +206,46 @@ describe("buildPrompt states the language", () => {
     expect(buildPrompt({ ...base, language: "ru" }, null)).toContain("Russian");
     expect(buildPrompt({ ...base, language: "de" }, null)).toContain("German");
   });
+});
+
+describe("buildPrompt — toy mode", () => {
+  it("POV: tells the agent it IS the toy, in first person", () => {
+    const p = buildPrompt(povConfig, null);
+    expect(p).toContain("You ARE Buzz Lightyear");
+    expect(p).toContain("first person");
+    expect(p).toContain("blast off on pretend missions");
+    expect(p).toContain("Mia");
+  });
+
+  it("3rd person: the agent guides play and is NOT the toy", () => {
+    const p = buildPrompt(thirdConfig, null);
+    expect(p).toContain("Robo");
+    expect(p).toContain("Buzz Lightyear");
+    expect(p).toContain("NOT the toy");
+  });
+
+  it("keeps the child-safety guardrails and swaps the real-person line for the toy-play one", () => {
+    for (const cfg of [povConfig, thirdConfig]) {
+      const p = buildPrompt(cfg, null);
+      expect(p).toContain("wonderful question for their mum or dad");
+      expect(p).toContain("Never ask for personal information");
+      expect(p).toContain("never claim to be a real living person");
+      expect(p).not.toContain("Never claim to be a real person");
+    }
+  });
+
+  it("states the language in toy mode too", () => {
+    expect(buildPrompt({ ...povConfig, language: "ru" }, null)).toContain("Russian");
+  });
+
+  const GENDERED_TOY = /\b(she|her|hers|herself|he|him|his|himself)\b/i;
+  const neutralToy: SessionConfig = { ...povConfig, directives: "Loves rockets. Praise a lot." };
+  for (const [label, cfg] of [
+    ["pov", neutralToy],
+    ["third-person", { ...neutralToy, agentName: "Robo", toyMode: "third-person" } as SessionConfig],
+  ] as const) {
+    it(`contains no gendered pronoun: ${label}`, () => {
+      expect(buildPrompt(cfg, null)).not.toMatch(GENDERED_TOY);
+    });
+  }
 });

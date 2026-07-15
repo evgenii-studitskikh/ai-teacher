@@ -9,8 +9,8 @@
 // res.json() on a non-JSON 500 throws, `setLoading(false)` never runs, and
 // the parent is stuck on "Writing the summary…" forever with no Retry.
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { POST } from "./route";
-import type { SavedSession, SessionConfig } from "../../../lib/types";
+import { POST, buildSummaryPrompt } from "./route";
+import type { SavedSession, SessionConfig, ToyInfo } from "../../../lib/types";
 
 const config: SessionConfig = {
   agentName: "Robo",
@@ -68,5 +68,27 @@ describe("POST /api/summarize — failure paths always return JSON", () => {
     const data = (await res.json()) as { summary: unknown; error?: string };
     expect(data.summary).toBeNull();
     expect(typeof data.error).toBe("string");
+  });
+});
+
+const toy: ToyInfo = {
+  name: "Buzz Lightyear",
+  character: "a brave space-ranger action figure",
+  personality: "confident, heroic",
+  howToPlay: "pretend space missions",
+};
+
+describe("buildSummaryPrompt framing", () => {
+  it("frames a lesson summary when there is no toy", () => {
+    const p = buildSummaryPrompt(validSession, "child: hi");
+    expect(p).toContain("lesson");
+    expect(p).not.toContain("Buzz Lightyear");
+  });
+
+  it("frames a play recap when the session has a toy", () => {
+    const toySession = { ...validSession, config: { ...config, toy, toyMode: "pov" as const } };
+    const p = buildSummaryPrompt(toySession, "child: hi");
+    expect(p).toContain("Buzz Lightyear");
+    expect(p).toMatch(/play|played/i);
   });
 });

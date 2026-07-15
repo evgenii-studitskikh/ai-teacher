@@ -16,7 +16,7 @@ export default function ToyConfirm({ toy, onConfirm, onRetake }: Props) {
       <dl className={styles.detail}>
         <dt>Personality</dt>
         <dd>{toy.personality}</dd>
-        <dt>How you'll play</dt>
+        <dt>How you&apos;ll play</dt>
         <dd>{toy.howToPlay}</dd>
       </dl>
       <button type="button" className={styles.use} onClick={onConfirm}>

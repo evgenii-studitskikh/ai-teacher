@@ -15,6 +15,22 @@ export type SessionConfig = {
   goal: string;
   directives: string;
   minutes: number;
+  // Present only for an Interactive Toy session. Their presence is what puts
+  // buildPrompt into toy mode; absent, everything behaves as a normal lesson.
+  toy?: ToyInfo;
+  toyMode?: ToyMode;
+};
+
+export type ToyMode = "pov" | "third-person";
+
+// What the vision model returns for a photographed toy, and what the toy-mode
+// prompt is built from. Kept deliberately small: a name the agent introduces
+// itself as, a one-line character, a personality, and grounded play ideas.
+export type ToyInfo = {
+  name: string; // "Buzz Lightyear"
+  character: string; // "a brave space-ranger action figure"
+  personality: string; // "confident, heroic, a little goofy"
+  howToPlay: string; // grounded suggestions for play with this toy
 };
 
 export type TranscriptTurn = {

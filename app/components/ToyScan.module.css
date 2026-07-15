@@ -1,0 +1,35 @@
+.scan {
+  display: grid;
+  gap: 16px;
+  text-align: center;
+}
+.lead {
+  opacity: 0.8;
+}
+.shutter {
+  padding: 18px;
+  font-size: 17px;
+  font-weight: 600;
+  border: none;
+  border-radius: 16px;
+  background: var(--accent, #6c5ce7);
+  color: #fff;
+  cursor: pointer;
+}
+.shutter:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.back {
+  padding: 10px;
+  background: none;
+  border: none;
+  color: var(--accent, #6c5ce7);
+  cursor: pointer;
+}
+.error {
+  color: #b00020;
+  background: #fde7ea;
+  padding: 10px 12px;
+  border-radius: 10px;
+}

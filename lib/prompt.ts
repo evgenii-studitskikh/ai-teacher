@@ -1,4 +1,4 @@
-import type { Language, SessionConfig, SessionSummary } from "./types";
+import type { Language, SessionConfig, SessionSummary, ToyInfo } from "./types";
 
 // Every language the app offers, with the two things it needs to actually teach
 // in that language.
@@ -89,7 +89,77 @@ function guardrails(name: string): string {
 - Never claim to be a real person. Never ask for personal information.`;
 }
 
+// Toy-mode guardrails. Identical child-safety spine as guardrails() above, with
+// one deliberate change: a child playing with a toy character is the whole
+// point, so "Never claim to be a real person" is replaced by a line that allows
+// the fictional toy persona while still forbidding impersonating a real human.
+function toyGuardrails(name: string, toyName: string): string {
+  return `
+- Keep everything gentle and age-appropriate.
+- If ${name} raises something big or upsetting — death, scary news, family matters —
+  warmly say that is a wonderful question for their mum or dad, and gently return
+  to playing.
+- You may play the part of ${toyName}, but never claim to be a real living person.
+- Never ask for personal information.`;
+}
+
+// The opening + persona paragraph, which is the only part that differs between
+// the two toy modes.
+function toyPersona(config: SessionConfig, toy: ToyInfo): string {
+  const name = config.childName;
+  if (config.toyMode === "third-person") {
+    return `You are ${config.agentName}, a warm, playful guide helping ${name}, who is ${config.childAge}, play with their ${toy.name} — ${toy.character}.
+You are NOT the toy. You are a friendly helper who suggests games, cheers ${name} on, and voices ${toy.name} now and then to bring it to life.
+${toy.name}'s personality: ${toy.personality}.`;
+  }
+  return `You ARE ${toy.name} — ${toy.character}. You are a toy, and ${name}, who is ${config.childAge}, is holding you and playing with you right now.
+Speak in the first person, always as ${toy.name}. Stay in character the whole time — react and sound like ${toy.name} would.
+Your personality: ${toy.personality}.`;
+}
+
+function buildToyPrompt(config: SessionConfig, toy: ToyInfo, lastSummary: SessionSummary | null): string {
+  const name = config.childName;
+  const ageRules = config.childAge < 6 ? youngChildRules(name) : olderChildRules(name);
+  const language = LANGUAGES[config.language].name;
+  const continuity = lastSummary
+    ? `
+## Last time
+Last time, ${name} played: ${lastSummary.whatWeDid}`
+    : "";
+
+  return `${toyPersona(config, toy)}
+
+## Language
+Speak ONLY in ${language}. Every word you say to ${name} is in ${language}, including
+your praise and your goodbye. ${name} may not understand any other language.
+
+## What ${name} wants to do
+${config.goal}
+
+Make this playful, not a lesson — games, silly voices, stories, pretend adventures.
+Follow ${name}'s lead. Ideas for playing with ${name}: ${toy.howToPlay}
+
+## How to talk to ${name}
+${ageRules}
+
+## What ${name}'s parent told you
+${config.directives}
+${continuity}
+
+## Rules
+${toyGuardrails(name, toy.name)}
+
+## Time
+You have about ${config.minutes} minutes. When you are told that time is nearly up,
+praise one specific thing ${name} did today, then say a warm goodbye. Do not start
+anything new.`;
+}
+
 export function buildPrompt(config: SessionConfig, lastSummary: SessionSummary | null): string {
+  // A toy session is identified purely by config.toy being present. Everything
+  // below this line is the unchanged lesson prompt.
+  if (config.toy) return buildToyPrompt(config, config.toy, lastSummary);
+
   const name = config.childName;
   const ageRules = config.childAge < 6 ? youngChildRules(name) : olderChildRules(name);
 

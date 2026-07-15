@@ -246,3 +246,25 @@
   border-radius: var(--r-md);
   font-weight: 600;
 }
+
+.modeLabel {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.modeGroup {
+  display: grid;
+  gap: 10px;
+}
+.modeOption {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px;
+  border: 1px solid var(--border, #d7d7e0);
+  border-radius: 12px;
+  cursor: pointer;
+}
+.modeOption input {
+  margin-top: 3px;
+}

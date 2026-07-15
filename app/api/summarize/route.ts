@@ -19,6 +19,55 @@ const SummarySchema = z.object({
   transcriptQuality: z.enum(["good", "poor"]),
 });
 
+// The prompt text, pulled out so it can be unit-tested and so the toy/lesson
+// framing lives in one place. A toy session is a play session, not a lesson, so
+// the same SessionSummary fields are asked for in play terms (what delighted
+// them, where they lost interest) rather than lesson terms.
+export function buildSummaryPrompt(session: SummarizeRequest, lines: string): string {
+  const { config } = session;
+  if (config.toy) {
+    return `You are helping a parent understand how their child's play session went.
+
+The child is ${config.childName}, aged ${config.childAge}.
+They played with ${config.toy.name} (${config.toy.character}).
+The point of the play was: ${config.goal}
+
+Here is the transcript:
+
+${lines || "(the child said nothing)"}
+
+Write a short, honest recap for the parent.
+
+Be specific about what delighted ${config.childName} and what they enjoyed most —
+"loved sending Buzz on rescue missions", not "had fun". If they lost interest, say
+when. Use the fields as: grasped = what they engaged with happily, struggled =
+what fell flat or frustrated them, nextFocus = an idea for next time.
+
+For transcriptQuality, judge whether the child's turns look like real speech that
+was understood correctly, or like garbled nonsense. If speech recognition clearly
+failed, mark it "poor".`;
+  }
+
+  return `You are helping a parent understand how their child's lesson went.
+
+The child is ${config.childName}, aged ${config.childAge}.
+The goal of the session was: ${config.goal}
+The teacher agent is called ${config.agentName}.
+
+Here is the transcript:
+
+${lines || "(the child said nothing)"}
+
+Write a short, honest summary for the parent.
+
+Be specific about what ${config.childName} grasped and what they struggled
+with — "counts 1 to 5 confidently", not "did well". If they lost interest, say when.
+
+For transcriptQuality, judge whether the child's turns look like real speech that
+was understood correctly, or like garbled nonsense. If speech recognition clearly
+failed to understand them, mark it "poor" — this is how the parent finds out.`;
+}
+
 export async function POST(request: Request) {
   let session: SummarizeRequest;
   try {
@@ -47,29 +96,7 @@ export async function POST(request: Request) {
       model: "claude-opus-4-8",
       max_tokens: 2000,
       output_config: { format: zodOutputFormat(SummarySchema) },
-      messages: [
-        {
-          role: "user",
-          content: `You are helping a parent understand how their child's lesson went.
-
-The child is ${session.config.childName}, aged ${session.config.childAge}.
-The goal of the session was: ${session.config.goal}
-The teacher agent is called ${session.config.agentName}.
-
-Here is the transcript:
-
-${lines || "(the child said nothing)"}
-
-Write a short, honest summary for the parent.
-
-Be specific about what ${session.config.childName} grasped and what they struggled
-with — "counts 1 to 5 confidently", not "did well". If they lost interest, say when.
-
-For transcriptQuality, judge whether the child's turns look like real speech that
-was understood correctly, or like garbled nonsense. If speech recognition clearly
-failed to understand them, mark it "poor" — this is how the parent finds out.`,
-        },
-      ],
+      messages: [{ role: "user", content: buildSummaryPrompt(session, lines) }],
     });
 
     const summary = response.parsed_output as SessionSummary | null;

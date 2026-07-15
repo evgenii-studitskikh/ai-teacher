@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import type { SessionConfig, ToyInfo } from "../../lib/types";
+import type { SessionConfig, ToyInfo, ToyMode } from "../../lib/types";
 import { LANGUAGE_OPTIONS } from "../../lib/prompt";
 import { loadProfile, listProfiles, saveProfile } from "../../lib/browser-storage";
 import { resolveVoiceSelection } from "../../lib/voice-selection";
@@ -26,8 +26,18 @@ const DEFAULTS: SessionConfig = {
 // these were two unrelated lists.
 const LANGUAGES = LANGUAGE_OPTIONS;
 
-export default function ConfigForm({ onStart }: { onStart: (config: SessionConfig) => void; toy?: ToyInfo }) {
-  const [config, setConfig] = useState<SessionConfig>(DEFAULTS);
+export default function ConfigForm({
+  onStart,
+  toy,
+}: {
+  onStart: (config: SessionConfig) => void;
+  toy?: ToyInfo;
+}) {
+  const [config, setConfig] = useState<SessionConfig>(() =>
+    toy
+      ? { ...DEFAULTS, agentName: toy.name, goal: "", toy, toyMode: "pov" as ToyMode }
+      : DEFAULTS,
+  );
   const [voices, setVoices] = useState<Voice[]>([]);
   const [voicesError, setVoicesError] = useState<string | null>(null);
   const [profileNote, setProfileNote] = useState<string | null>(null);
@@ -106,6 +116,7 @@ export default function ConfigForm({ onStart }: { onStart: (config: SessionConfi
   // `config` could go stale — reading it straight from the closure is safe,
   // and the configRef that used to survive that gap is gone with it.
   function loadSaved() {
+    if (toy) return; // toy sessions never load a stored lesson profile
     if (!config.childName) return;
     const saved = loadProfile(config.childName);
     if (!saved) {
@@ -162,6 +173,18 @@ export default function ConfigForm({ onStart }: { onStart: (config: SessionConfi
     setConfig((c) => ({ ...c, [key]: value }));
   };
 
+  const setToyMode = (mode: ToyMode) => {
+    // In POV the agent speaks AS the toy, so its introduced name must be the
+    // toy's name (the greeting says "I'm {agentName}", and the safety canary
+    // requires that name in the first spoken turn). Switching to POV forces it;
+    // switching to 3rd person restores a guide name if the toy name was in place.
+    setConfig((c) => ({
+      ...c,
+      toyMode: mode,
+      agentName: mode === "pov" ? (toy?.name ?? c.agentName) : c.agentName === toy?.name ? "Robo" : c.agentName,
+    }));
+  };
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
     // `voiceId`, not `config.voiceId`: the derived value is the one the radios
@@ -169,13 +192,14 @@ export default function ConfigForm({ onStart }: { onStart: (config: SessionConfi
     // one that gets used AND the one that gets saved back to the profile —
     // otherwise a substituted voice would be silently un-substituted next time.
     const chosen = { ...config, voiceId };
-    try {
-      saveProfile(chosen);
-    } catch {
-      // Saving the profile is a convenience — it only ever fills in fields for
-      // next time. Losing it must not block tonight's lesson, so the session
-      // starts either way. Contrast with EndView's saveSession, which is the
-      // one save this app treats as load-bearing and lets throw all the way up.
+    // Toy sessions are ephemeral and must not overwrite the child's saved
+    // lesson profile (which would also poison a later lesson with toy fields).
+    if (!toy) {
+      try {
+        saveProfile(chosen);
+      } catch {
+        // Saving the profile is a convenience; losing it must not block the session.
+      }
     }
     onStart(chosen);
   }
@@ -218,7 +242,7 @@ export default function ConfigForm({ onStart }: { onStart: (config: SessionConfi
 
   return (
     <>
-      {profiles.length > 0 && (
+      {!toy && profiles.length > 0 && (
         <section className={styles.recent} aria-label="Saved children">
           <h2 className={styles.sectionTitle}>Pick up where you left off</h2>
           <ul className={styles.cards}>
@@ -298,13 +322,43 @@ export default function ConfigForm({ onStart }: { onStart: (config: SessionConfi
         <fieldset className={styles.group}>
           <legend className={styles.legend}>What</legend>
 
+          {toy && (
+            <div className={styles.field}>
+              <span className={styles.modeLabel}>How should {config.agentName || toy.name} play?</span>
+              <div className={styles.modeGroup} role="radiogroup" aria-label="Interaction mode">
+                <label className={styles.modeOption}>
+                  <input
+                    type="radio"
+                    name={`${formId}-toyMode`}
+                    checked={config.toyMode === "pov"}
+                    onChange={() => setToyMode("pov")}
+                  />
+                  <span>
+                    <strong>Be the toy</strong> — the AI talks as {toy.name}.
+                  </span>
+                </label>
+                <label className={styles.modeOption}>
+                  <input
+                    type="radio"
+                    name={`${formId}-toyMode`}
+                    checked={config.toyMode === "third-person"}
+                    onChange={() => setToyMode("third-person")}
+                  />
+                  <span>
+                    <strong>Help me play</strong> — a guide helps the child play with {toy.name}.
+                  </span>
+                </label>
+              </div>
+            </div>
+          )}
+
           <div className={styles.field}>
-            <label htmlFor={`${formId}-goal`}>Goal</label>
+            <label htmlFor={`${formId}-goal`}>{toy ? "Purpose of play" : "Goal"}</label>
             <input
               id={`${formId}-goal`}
               value={config.goal}
               onChange={(e) => set("goal", e.target.value)}
-              placeholder="Count to 10"
+              placeholder={toy ? "Practice colours; wind down before bed" : "Count to 10"}
               required
             />
           </div>
@@ -324,15 +378,21 @@ export default function ConfigForm({ onStart }: { onStart: (config: SessionConfi
         <fieldset className={styles.group}>
           <legend className={styles.legend}>How</legend>
 
-          <div className={styles.field}>
-            <label htmlFor={`${formId}-agentName`}>Agent name</label>
-            <input
-              id={`${formId}-agentName`}
-              value={config.agentName}
-              onChange={(e) => set("agentName", e.target.value)}
-              required
-            />
-          </div>
+          {toy && config.toyMode === "pov" ? (
+            <p className={styles.note}>
+              {toy.name} will introduce itself by name when the session starts.
+            </p>
+          ) : (
+            <div className={styles.field}>
+              <label htmlFor={`${formId}-agentName`}>{toy ? "Helper's name" : "Agent name"}</label>
+              <input
+                id={`${formId}-agentName`}
+                value={config.agentName}
+                onChange={(e) => set("agentName", e.target.value)}
+                required
+              />
+            </div>
+          )}
 
           <fieldset className={styles.subgroup}>
             <legend className={styles.sublegend}>Voice</legend>

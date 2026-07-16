@@ -234,6 +234,36 @@ describe("buildPrompt states the language", () => {
   });
 });
 
+describe("teacher personality", () => {
+  it("weaves a non-empty personality into the lesson prompt", () => {
+    const prompt = buildPrompt({ ...base, teacherPersonality: "A playful storyteller." }, null);
+    expect(prompt).toContain("Your personality: A playful storyteller.");
+  });
+
+  it("adds no personality line when the field is absent or blank", () => {
+    expect(buildPrompt(base, null)).not.toContain("Your personality:");
+    expect(buildPrompt({ ...base, teacherPersonality: "   " }, null)).not.toContain("Your personality:");
+  });
+
+  it("weaves the helper's personality into a third-person toy prompt", () => {
+    const prompt = buildPrompt(
+      { ...thirdConfig, teacherPersonality: "Gentle and giggly." },
+      null,
+    );
+    expect(prompt).toContain("Your personality: Gentle and giggly.");
+    // The toy's own personality is still described separately.
+    expect(prompt).toContain(`${toy.name}'s personality: ${toy.personality}`);
+  });
+
+  it("leaves the POV toy prompt to the toy's own personality", () => {
+    const prompt = buildPrompt(
+      { ...povConfig, teacherPersonality: "Should not appear." },
+      null,
+    );
+    expect(prompt).not.toContain("Should not appear.");
+  });
+});
+
 describe("buildPrompt — toy mode", () => {
   it("POV: tells the agent it IS the toy, in first person", () => {
     const p = buildPrompt(povConfig, null);

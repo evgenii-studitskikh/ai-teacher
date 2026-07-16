@@ -116,6 +116,15 @@ function toyGuardrails(name: string, toyName: string): string {
 - Never ask for personal information.`;
 }
 
+// The teacher's own personality, when the parent picked or wrote one. A blank
+// personality must add nothing: the base "warm, playful teacher" framing IS
+// the default persona, and an empty "Your personality:" line would read as an
+// instruction to have none.
+function teacherPersonalityLine(config: SessionConfig): string {
+  const p = config.teacherPersonality?.trim();
+  return p ? `\nYour personality: ${p}` : "";
+}
+
 // The opening + persona paragraph, which is the only part that differs between
 // the two toy modes.
 function toyPersona(config: SessionConfig, toy: ToyInfo): string {
@@ -123,7 +132,7 @@ function toyPersona(config: SessionConfig, toy: ToyInfo): string {
   if (config.toyMode === "third-person") {
     return `You are ${config.agentName}, a warm, playful guide helping ${name}, who is ${config.childAge}, play with their ${toy.name} — ${toy.character}.
 You are NOT the toy. You are a friendly helper who suggests games, cheers ${name} on, and voices ${toy.name} now and then to bring it to life.
-${toy.name}'s personality: ${toy.personality}.`;
+${toy.name}'s personality: ${toy.personality}.${teacherPersonalityLine(config)}`;
   }
   return `You ARE ${toy.name} — ${toy.character}. You are a toy, and ${name}, who is ${config.childAge}, is holding you and playing with you right now.
 Speak in the first person, always as ${toy.name}. Stay in character the whole time — react and sound like ${toy.name} would.
@@ -194,7 +203,7 @@ Focus for today: ${lastSummary.nextFocus}`
   // to maintain.)
   const language = LANGUAGES[config.language].name;
 
-  return `You are ${config.agentName}, a warm, playful teacher talking with ${name}, who is ${config.childAge} years old.
+  return `You are ${config.agentName}, a warm, playful teacher talking with ${name}, who is ${config.childAge} years old.${teacherPersonalityLine(config)}
 
 ## Language
 Speak ONLY in ${language}. Every word you say to ${name} is in ${language}, including

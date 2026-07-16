@@ -509,4 +509,62 @@ describe("migrateProfilesToKids", () => {
     migrateProfilesToKids(store);
     expect(listTeachers(store)[0].voiceId).toBeNull();
   });
+
+  // A quota error or a blocked removeItem can throw partway through the
+  // first attempt, after some kids/teachers/last-starts are already
+  // written but before the MIGRATION_KEY marker. A retry must resume from
+  // stored state, not rebuild everything from scratch and duplicate what
+  // the failed run already created.
+  it("is retry-safe after a write throws partway through", () => {
+    saveProfile(config, store); // Mia / Robo / v1
+    saveProfile({ ...config, childName: "Аня", childAge: 7 }, store); // Аня / Robo / v1 — same teacher pair
+
+    // Fails on the 4th setItem: (1) teacher for Mia's pair, (2) kid Mia,
+    // (3) last-start Mia, (4) kid Аня — so the first profile fully
+    // migrates and the second is left only partly done.
+    let writes = 0;
+    const flaky: Storage = {
+      get length() {
+        return store.length;
+      },
+      clear: () => store.clear(),
+      getItem: (k) => store.getItem(k),
+      key: (i) => store.key(i),
+      removeItem: (k) => store.removeItem(k),
+      setItem: (k, v) => {
+        writes++;
+        if (writes === 4) throw new Error("quota exceeded");
+        store.setItem(k, v);
+      },
+    };
+
+    expect(() => migrateProfilesToKids(flaky)).toThrow();
+
+    // Retry against the real store — no wrapper, no throw.
+    migrateProfilesToKids(store);
+
+    const kids = listKids(store);
+    expect(kids.map((k) => k.name).sort()).toEqual(["Mia", "Аня"]);
+
+    const teachers = listTeachers(store);
+    expect(teachers).toHaveLength(1); // not duplicated for the already-migrated pair
+    expect(teachers[0]).toMatchObject({ kind: "custom", name: "Robo", voiceId: "v1" });
+
+    const mia = kids.find((k) => k.name === "Mia") as Kid;
+    const anya = kids.find((k) => k.name === "Аня") as Kid;
+    expect(loadLastStart(mia.id, store)).toEqual({
+      teacherId: teachers[0].id,
+      goal: "Count to 10",
+      directives: "",
+      minutes: 10,
+    });
+    expect(loadLastStart(anya.id, store)).toEqual({
+      teacherId: teachers[0].id,
+      goal: "Count to 10",
+      directives: "",
+      minutes: 10,
+    });
+
+    expect(listProfiles(store)).toEqual([]);
+  });
 });

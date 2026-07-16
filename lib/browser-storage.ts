@@ -294,10 +294,25 @@ export function upsertToyTeacher(
 // keyed by child name) into first-class kids + teachers + last-start prefills.
 // The marker is written LAST: any throw on the way leaves the old profiles
 // intact for the next attempt, and a second run after success is a no-op.
+//
+// That "any throw" case is also why this has to be retry-safe, not just
+// idempotent: a partial run (quota exceeded, a removeItem that throws) can
+// leave some kids/teachers/last-starts written and the marker still unset.
+// A naive retry that only tracked "already created" in an in-memory map
+// (reset every call) would not know that, and would mint a fresh
+// randomUUID kid and a duplicate custom teacher for every profile the failed
+// run already migrated. So before creating anything, each step below checks
+// the store itself — the actual source of truth — for an existing kid
+// (matched by normalized name) or an existing custom teacher (matched by
+// name + voiceId) and reuses it if present. The in-memory `teacherByPair`
+// map stays as a fast path within a single run; it's just no longer trusted
+// as the only record of what already exists.
 export function migrateProfilesToKids(store: Storage = defaultStore()): void {
   if (store.getItem(MIGRATION_KEY) !== null) return;
 
   const profiles = listProfiles(store);
+  const existingKids = listKids(store);
+  const existingTeachers = listTeachers(store);
   const teacherByPair = new Map<string, string>(); // "agentName|voiceId" -> teacherId
   const migratedKeys: string[] = [];
 
@@ -305,30 +320,46 @@ export function migrateProfilesToKids(store: Storage = defaultStore()): void {
     const pairKey = `${p.agentName}|${p.voiceId}`;
     let teacherId = teacherByPair.get(pairKey);
     if (!teacherId) {
-      teacherId = crypto.randomUUID();
-      saveTeacher(
-        {
-          id: teacherId,
-          kind: "custom",
-          name: p.agentName,
-          voiceId: p.voiceId || null,
-          personality: "",
-          createdAt: new Date().toISOString(),
-        },
-        store,
+      const voiceId = p.voiceId || null;
+      const existingTeacher = existingTeachers.find(
+        (t) => t.kind === "custom" && t.name === p.agentName && t.voiceId === voiceId,
       );
+      teacherId = existingTeacher?.id;
+      if (!teacherId) {
+        teacherId = crypto.randomUUID();
+        saveTeacher(
+          {
+            id: teacherId,
+            kind: "custom",
+            name: p.agentName,
+            voiceId,
+            personality: "",
+            createdAt: new Date().toISOString(),
+          },
+          store,
+        );
+      }
       teacherByPair.set(pairKey, teacherId);
     }
 
-    const kid: Kid = {
-      id: crypto.randomUUID(),
-      name: p.childName,
-      age: p.childAge,
-      createdAt: new Date().toISOString(),
-    };
-    saveKid(kid, store);
+    const existingKid = existingKids.find((k) => normalizeName(k.name) === normalizeName(p.childName));
+    let kidId: string;
+    if (existingKid) {
+      kidId = existingKid.id;
+    } else {
+      const kid: Kid = {
+        id: crypto.randomUUID(),
+        name: p.childName,
+        age: p.childAge,
+        createdAt: new Date().toISOString(),
+      };
+      saveKid(kid, store);
+      kidId = kid.id;
+    }
+    // Written unconditionally, even for a reused kid: a prior failed run
+    // could have created the kid but thrown before this write completed.
     saveLastStart(
-      kid.id,
+      kidId,
       { teacherId, goal: p.goal, directives: p.directives, minutes: p.minutes },
       store,
     );

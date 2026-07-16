@@ -1,3 +1,4 @@
+import type { PresetTeacherId } from "./preset-teachers";
 import type { Language, SessionConfig } from "./types";
 
 // Every string the parent sees, in every language the app teaches in. Typed
@@ -132,6 +133,48 @@ export type UIStrings = {
   unlockBtn: string;
   wrongPasscode: string;
   unlockNetworkError: string;
+
+  // KidPicker (home)
+  whoIsLearning: string;
+  addKid: string;
+  ageShort: (age: number) => string;
+  manage: string;
+  save: string;
+  cancel: string;
+
+  // TeacherPicker
+  whoWillTeach: string;
+  presetBadge: string;
+  toyBadge: string;
+  lastTimeBadge: string;
+  scanToyTitle: string;
+  scanToySub: string;
+  playingWith: (toyName: string) => string;
+  presetTeachers: Record<PresetTeacherId, { name: string; description: string }>;
+
+  // StartSheet
+  todaysSession: string;
+  durationLabel: string;
+  minutesShort: (m: number) => string;
+  changeSelection: string;
+
+  // Manage
+  kidsTab: string;
+  teachersTab: string;
+  edit: string;
+  deleteAction: string;
+  confirmDelete: string;
+  duplicateAndEdit: string;
+  newTeacher: string;
+  teacherNameLabel: string;
+  personalityFieldLabel: string;
+  personalityPlaceholder: string;
+  autoVoice: string;
+  generateVoice: string;
+  generatingVoice: string;
+  voiceGenerated: string;
+  voiceGenerateFailed: (detail: string) => string;
+  nothingHereYet: string;
 };
 
 // The picker shows NATIVE names — a parent choosing their own language
@@ -265,6 +308,48 @@ const en: UIStrings = {
   unlockBtn: "Unlock",
   wrongPasscode: "That is not the passcode.",
   unlockNetworkError: "Could not reach the server. Check your connection and try again.",
+
+  whoIsLearning: "Who's learning today?",
+  addKid: "Add a child",
+  ageShort: (age) => `Age ${age}`,
+  manage: "Manage",
+  save: "Save",
+  cancel: "Cancel",
+
+  whoWillTeach: "Who will teach?",
+  presetBadge: "Built-in",
+  toyBadge: "Toy",
+  lastTimeBadge: "Last time",
+  scanToyTitle: "Scan a toy",
+  scanToySub: "Photograph a real toy and bring it to life.",
+  playingWith: (toyName) => `Playing with ${toyName} — now pick a helper.`,
+  presetTeachers: {
+    generalist: { name: "Sunny", description: "A warm all-rounder for any topic." },
+    storyteller: { name: "Luna", description: "Turns every lesson into a story." },
+    mathCoach: { name: "Max", description: "Patient coach for numbers and counting." },
+  },
+
+  todaysSession: "Today's session",
+  durationLabel: "How long?",
+  minutesShort: (m) => `${m} min`,
+  changeSelection: "Change",
+
+  kidsTab: "Children",
+  teachersTab: "Teachers",
+  edit: "Edit",
+  deleteAction: "Delete",
+  confirmDelete: "Tap again to confirm",
+  duplicateAndEdit: "Duplicate & edit",
+  newTeacher: "New teacher",
+  teacherNameLabel: "Name",
+  personalityFieldLabel: "Personality",
+  personalityPlaceholder: "Warm and curious. Loves puns. Always up for a pretend adventure.",
+  autoVoice: "Automatic (best match)",
+  generateVoice: "Generate a matching voice",
+  generatingVoice: "Generating a voice…",
+  voiceGenerated: "Voice created and selected.",
+  voiceGenerateFailed: (detail) => `Could not generate a voice: ${detail} The best-match voice is still selected.`,
+  nothingHereYet: "Nothing here yet.",
 };
 
 const ru: UIStrings = {
@@ -385,6 +470,48 @@ const ru: UIStrings = {
   unlockBtn: "Открыть",
   wrongPasscode: "Это не тот код.",
   unlockNetworkError: "Не удалось связаться с сервером. Проверьте соединение и попробуйте ещё раз.",
+
+  whoIsLearning: "Кто сегодня занимается?",
+  addKid: "Добавить ребёнка",
+  ageShort: (age) => `${age} лет`,
+  manage: "Управление",
+  save: "Сохранить",
+  cancel: "Отмена",
+
+  whoWillTeach: "Кто будет учить?",
+  presetBadge: "Встроенный",
+  toyBadge: "Игрушка",
+  lastTimeBadge: "Прошлый раз",
+  scanToyTitle: "Сканировать игрушку",
+  scanToySub: "Сфотографируйте настоящую игрушку и оживите её.",
+  playingWith: (toyName) => `Играем с ${toyName} — теперь выберите помощника.`,
+  presetTeachers: {
+    generalist: { name: "Санни", description: "Тёплый универсал на любую тему." },
+    storyteller: { name: "Луна", description: "Превращает любой урок в сказку." },
+    mathCoach: { name: "Макс", description: "Терпеливый тренер по цифрам и счёту." },
+  },
+
+  todaysSession: "Сегодняшнее занятие",
+  durationLabel: "Как долго?",
+  minutesShort: (m) => `${m} мин`,
+  changeSelection: "Изменить",
+
+  kidsTab: "Дети",
+  teachersTab: "Учителя",
+  edit: "Редактировать",
+  deleteAction: "Удалить",
+  confirmDelete: "Нажмите ещё раз для подтверждения",
+  duplicateAndEdit: "Дублировать и изменить",
+  newTeacher: "Новый учитель",
+  teacherNameLabel: "Имя",
+  personalityFieldLabel: "Характер",
+  personalityPlaceholder: "Тёплый и любопытный характер. Обожает каламбуры. Всегда за выдуманное приключение.",
+  autoVoice: "Автоматически (лучшее совпадение)",
+  generateVoice: "Сгенерировать подходящий голос",
+  generatingVoice: "Создаём голос…",
+  voiceGenerated: "Голос создан и выбран.",
+  voiceGenerateFailed: (detail) => `Не удалось создать голос: ${detail} Голос с лучшим совпадением всё ещё выбран.`,
+  nothingHereYet: "Здесь пока пусто.",
 };
 
 const es: UIStrings = {
@@ -505,6 +632,48 @@ const es: UIStrings = {
   unlockBtn: "Desbloquear",
   wrongPasscode: "Ese no es el código.",
   unlockNetworkError: "No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.",
+
+  whoIsLearning: "¿Quién aprende hoy?",
+  addKid: "Añadir un peque",
+  ageShort: (age) => `${age} años`,
+  manage: "Gestionar",
+  save: "Guardar",
+  cancel: "Cancelar",
+
+  whoWillTeach: "¿Quién va a enseñar?",
+  presetBadge: "Integrado",
+  toyBadge: "Juguete",
+  lastTimeBadge: "La última vez",
+  scanToyTitle: "Escanear un juguete",
+  scanToySub: "Fotografía un juguete real y dale vida.",
+  playingWith: (toyName) => `Jugando con ${toyName} — ahora elige un ayudante.`,
+  presetTeachers: {
+    generalist: { name: "Sol", description: "Un ayudante cálido y versátil para cualquier tema." },
+    storyteller: { name: "Luna", description: "Convierte cada lección en un cuento." },
+    mathCoach: { name: "Max", description: "Entrenador paciente con los números y el conteo." },
+  },
+
+  todaysSession: "Sesión de hoy",
+  durationLabel: "¿Cuánto tiempo?",
+  minutesShort: (m) => `${m} min`,
+  changeSelection: "Cambiar",
+
+  kidsTab: "Peques",
+  teachersTab: "Profes",
+  edit: "Editar",
+  deleteAction: "Eliminar",
+  confirmDelete: "Toca de nuevo para confirmar",
+  duplicateAndEdit: "Duplicar y editar",
+  newTeacher: "Nuevo profe",
+  teacherNameLabel: "Nombre",
+  personalityFieldLabel: "Personalidad",
+  personalityPlaceholder: "Cálido y curioso. Le encantan los juegos de palabras. Siempre con ganas de una aventura imaginaria.",
+  autoVoice: "Automático (mejor coincidencia)",
+  generateVoice: "Generar una voz a juego",
+  generatingVoice: "Generando una voz…",
+  voiceGenerated: "Voz creada y seleccionada.",
+  voiceGenerateFailed: (detail) => `No se pudo generar la voz: ${detail} La voz de mejor coincidencia sigue seleccionada.`,
+  nothingHereYet: "Aún no hay nada aquí.",
 };
 
 const de: UIStrings = {
@@ -625,6 +794,49 @@ const de: UIStrings = {
   unlockBtn: "Entsperren",
   wrongPasscode: "Das ist nicht der Code.",
   unlockNetworkError: "Der Server war nicht erreichbar. Prüfe deine Verbindung und versuch es erneut.",
+
+  whoIsLearning: "Wer lernt heute?",
+  addKid: "Kind hinzufügen",
+  ageShort: (age) => `${age} Jahre`,
+  manage: "Verwalten",
+  save: "Speichern",
+  cancel: "Abbrechen",
+
+  whoWillTeach: "Wer unterrichtet?",
+  presetBadge: "Integriert",
+  toyBadge: "Spielzeug",
+  lastTimeBadge: "Letztes Mal",
+  scanToyTitle: "Ein Spielzeug scannen",
+  scanToySub: "Fotografiere ein echtes Spielzeug und erwecke es zum Leben.",
+  playingWith: (toyName) => `Du spielst mit ${toyName} — wähle jetzt einen Helfer.`,
+  presetTeachers: {
+    generalist: { name: "Sunny", description: "Ein warmherziger Allrounder für jedes Thema." },
+    storyteller: { name: "Luna", description: "Verwandelt jede Lektion in eine Geschichte." },
+    mathCoach: { name: "Max", description: "Geduldiger Coach für Zahlen und Zählen." },
+  },
+
+  todaysSession: "Heutige Einheit",
+  durationLabel: "Wie lange?",
+  minutesShort: (m) => `${m} Min.`,
+  changeSelection: "Ändern",
+
+  kidsTab: "Kinder",
+  teachersTab: "Lehrkräfte",
+  edit: "Bearbeiten",
+  deleteAction: "Löschen",
+  confirmDelete: "Nochmal tippen zum Bestätigen",
+  duplicateAndEdit: "Duplizieren & bearbeiten",
+  newTeacher: "Neue Lehrkraft",
+  teacherNameLabel: "Name",
+  personalityFieldLabel: "Persönlichkeit",
+  personalityPlaceholder: "Warmherzig und neugierig. Liebt Wortspiele. Immer bereit für ein Fantasieabenteuer.",
+  autoVoice: "Automatisch (beste Übereinstimmung)",
+  generateVoice: "Passende Stimme generieren",
+  generatingVoice: "Stimme wird generiert…",
+  voiceGenerated: "Stimme erstellt und ausgewählt.",
+  voiceGenerateFailed: (detail) =>
+    `Die Stimme konnte nicht generiert werden: ${detail} Die am besten passende Stimme ist weiterhin ausgewählt.`,
+  nothingHereYet: "Hier ist noch nichts.",
 };
 
 // Hebrew addresses the parent in the plural ("אתם") throughout — the standard
@@ -745,6 +957,48 @@ const he: UIStrings = {
   unlockBtn: "פתיחה",
   wrongPasscode: "זה לא הקוד.",
   unlockNetworkError: "אין חיבור לשרת. בדקו את החיבור ונסו שוב.",
+
+  whoIsLearning: "מי לומד היום?",
+  addKid: "הוספת ילד או ילדה",
+  ageShort: (age) => `גיל ${age}`,
+  manage: "ניהול",
+  save: "שמירה",
+  cancel: "ביטול",
+
+  whoWillTeach: "מי ילמד?",
+  presetBadge: "מובנה",
+  toyBadge: "צעצוע",
+  lastTimeBadge: "בפעם הקודמת",
+  scanToyTitle: "סריקת צעצוע",
+  scanToySub: "צלמו צעצוע אמיתי והחיו אותו.",
+  playingWith: (toyName) => `משחקים עם ${toyName} — עכשיו בחרו עוזר.`,
+  presetTeachers: {
+    generalist: { name: "סאני", description: "מורה חם ורב־תחומי לכל נושא." },
+    storyteller: { name: "לונה", description: "הופך כל שיעור לסיפור." },
+    mathCoach: { name: "מקס", description: "מאמן סבלני למספרים וספירה." },
+  },
+
+  todaysSession: "המפגש של היום",
+  durationLabel: "כמה זמן?",
+  minutesShort: (m) => `${m} דק׳`,
+  changeSelection: "שינוי",
+
+  kidsTab: "ילדים",
+  teachersTab: "מורים",
+  edit: "עריכה",
+  deleteAction: "מחיקה",
+  confirmDelete: "הקישו שוב לאישור",
+  duplicateAndEdit: "שכפול ועריכה",
+  newTeacher: "מורה חדש",
+  teacherNameLabel: "שם",
+  personalityFieldLabel: "אופי",
+  personalityPlaceholder: "חם וסקרן. אוהב משחקי מילים. תמיד מוכן להרפתקה מדומיינת.",
+  autoVoice: "אוטומטי (ההתאמה הטובה ביותר)",
+  generateVoice: "יצירת קול מתאים",
+  generatingVoice: "יוצרים קול…",
+  voiceGenerated: "הקול נוצר ונבחר.",
+  voiceGenerateFailed: (detail) => `לא ניתן היה ליצור קול: ${detail} הקול עם ההתאמה הטובה ביותר עדיין נבחר.`,
+  nothingHereYet: "עוד אין כאן כלום.",
 };
 
 const tl: UIStrings = {
@@ -866,6 +1120,48 @@ const tl: UIStrings = {
   unlockBtn: "I-unlock",
   wrongPasscode: "Hindi iyan ang passcode.",
   unlockNetworkError: "Hindi maabot ang server. Suriin ang koneksyon mo at subukan ulit.",
+
+  whoIsLearning: "Sino ang mag-aaral ngayon?",
+  addKid: "Magdagdag ng bata",
+  ageShort: (age) => `${age} taong gulang`,
+  manage: "I-manage",
+  save: "I-save",
+  cancel: "Kanselahin",
+
+  whoWillTeach: "Sino ang magtuturo?",
+  presetBadge: "Built-in",
+  toyBadge: "Laruan",
+  lastTimeBadge: "Huling beses",
+  scanToyTitle: "Mag-scan ng laruan",
+  scanToySub: "Kunan ng litrato ang totoong laruan at buhayin ito.",
+  playingWith: (toyName) => `Naglalaro kasama si ${toyName} — pumili na ng katulong.`,
+  presetTeachers: {
+    generalist: { name: "Sunny", description: "Mainit at maaasahan sa kahit anong topic." },
+    storyteller: { name: "Luna", description: "Ginagawang kwento ang bawat aralin." },
+    mathCoach: { name: "Max", description: "Matiyagang coach sa numero at pagbibilang." },
+  },
+
+  todaysSession: "Session ngayon",
+  durationLabel: "Gaano katagal?",
+  minutesShort: (m) => `${m} min`,
+  changeSelection: "Baguhin",
+
+  kidsTab: "Mga Bata",
+  teachersTab: "Mga Guro",
+  edit: "I-edit",
+  deleteAction: "I-delete",
+  confirmDelete: "Pindutin ulit para kumpirmahin",
+  duplicateAndEdit: "I-duplicate at i-edit",
+  newTeacher: "Bagong guro",
+  teacherNameLabel: "Pangalan",
+  personalityFieldLabel: "Ugali",
+  personalityPlaceholder: "Mainit ang ugali at mausisa. Mahilig sa word jokes. Laging game sa gawa-gawang adventure.",
+  autoVoice: "Automatic (pinakabagay)",
+  generateVoice: "I-generate ang bagay na boses",
+  generatingVoice: "Ginagawa ang boses…",
+  voiceGenerated: "Nagawa na at napili ang boses.",
+  voiceGenerateFailed: (detail) => `Hindi magawa ang boses: ${detail} Nakapili pa rin ang boses na pinakabagay.`,
+  nothingHereYet: "Wala pang laman dito.",
 };
 
 const uk: UIStrings = {
@@ -986,6 +1282,48 @@ const uk: UIStrings = {
   unlockBtn: "Відкрити",
   wrongPasscode: "Це не той код.",
   unlockNetworkError: "Не вдалося зв'язатися з сервером. Перевірте з'єднання і спробуйте ще раз.",
+
+  whoIsLearning: "Хто сьогодні займається?",
+  addKid: "Додати дитину",
+  ageShort: (age) => `${age} років`,
+  manage: "Керування",
+  save: "Зберегти",
+  cancel: "Скасувати",
+
+  whoWillTeach: "Хто вчитиме?",
+  presetBadge: "Вбудований",
+  toyBadge: "Іграшка",
+  lastTimeBadge: "Минулого разу",
+  scanToyTitle: "Сканувати іграшку",
+  scanToySub: "Сфотографуйте справжню іграшку й оживіть її.",
+  playingWith: (toyName) => `Граємо з ${toyName} — тепер оберіть помічника.`,
+  presetTeachers: {
+    generalist: { name: "Санні", description: "Теплий універсал на будь-яку тему." },
+    storyteller: { name: "Луна", description: "Перетворює кожен урок на казку." },
+    mathCoach: { name: "Макс", description: "Терплячий тренер із цифр і лічби." },
+  },
+
+  todaysSession: "Сьогоднішнє заняття",
+  durationLabel: "Як довго?",
+  minutesShort: (m) => `${m} хв`,
+  changeSelection: "Змінити",
+
+  kidsTab: "Діти",
+  teachersTab: "Вчителі",
+  edit: "Редагувати",
+  deleteAction: "Видалити",
+  confirmDelete: "Натисніть ще раз для підтвердження",
+  duplicateAndEdit: "Дублювати й редагувати",
+  newTeacher: "Новий учитель",
+  teacherNameLabel: "Ім'я",
+  personalityFieldLabel: "Характер",
+  personalityPlaceholder: "Теплий і допитливий характер. Обожнює каламбури. Завжди за вигадану пригоду.",
+  autoVoice: "Автоматично (найкращий збіг)",
+  generateVoice: "Згенерувати відповідний голос",
+  generatingVoice: "Створюємо голос…",
+  voiceGenerated: "Голос створено й обрано.",
+  voiceGenerateFailed: (detail) => `Не вдалося створити голос: ${detail} Голос із найкращим збігом усе ще обрано.`,
+  nothingHereYet: "Тут поки що порожньо.",
 };
 
 export const STRINGS: Record<Language, UIStrings> = { en, ru, es, de, he, tl, uk };

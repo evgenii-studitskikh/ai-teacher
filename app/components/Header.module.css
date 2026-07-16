@@ -1,0 +1,19 @@
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+}
+
+.title {
+  font-size: var(--t-xl);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.picker {
+  font: inherit;
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-sm);
+  max-width: 11rem;
+}

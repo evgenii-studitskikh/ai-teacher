@@ -27,13 +27,6 @@
   box-shadow: var(--shadow);
 }
 
-.title {
-  font-size: var(--t-xl);
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  text-align: center;
-}
-
 .form {
   display: flex;
   flex-direction: column;

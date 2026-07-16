@@ -8,13 +8,21 @@ export async function GET() {
   if (!res.ok) return Response.json({ error: "Could not list voices" }, { status: 502 });
 
   const data = (await res.json()) as {
-    voices: { voice_id: string; name: string; preview_url: string }[];
+    voices: {
+      voice_id: string;
+      name: string;
+      preview_url: string;
+      labels?: Record<string, string>;
+      description?: string | null;
+    }[];
   };
   return Response.json({
     voices: data.voices.map((v) => ({
       voiceId: v.voice_id,
       name: v.name,
       previewUrl: v.preview_url,
+      labels: v.labels ?? {},
+      description: v.description ?? null,
     })),
   });
 }

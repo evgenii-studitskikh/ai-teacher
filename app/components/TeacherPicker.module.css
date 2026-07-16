@@ -1,0 +1,110 @@
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.title {
+  font-size: var(--t-lg);
+  margin-block: 0;
+  font-weight: 600;
+}
+
+.cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: var(--s-3);
+}
+
+.card {
+  inline-size: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+  padding: var(--s-4);
+  border: 1px solid var(--border, #d7d7e0);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  cursor: pointer;
+  text-align: start;
+  font: inherit;
+  transition: transform 0.15s var(--ease), box-shadow 0.15s var(--ease);
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lift);
+}
+
+.card:active {
+  transform: translateY(1px);
+  box-shadow: var(--shadow);
+}
+
+.cardName {
+  font-weight: 600;
+  font-size: var(--t-md);
+}
+
+.cardSub {
+  color: var(--c-ink-soft);
+  font-size: var(--t-sm);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.badges {
+  display: flex;
+  gap: var(--s-1);
+  min-block-size: 1.1rem;
+}
+
+.badge,
+.badgeLast {
+  font-size: var(--t-xs);
+  padding: 0.05rem var(--s-2);
+  border-radius: var(--r-full);
+  border: 1px solid var(--border, #d7d7e0);
+  color: var(--c-ink-soft);
+}
+
+.badgeLast {
+  font-weight: 600;
+  color: var(--c-ink);
+}
+
+.pendingToy {
+  margin-block: 0;
+  font-size: var(--t-sm);
+  color: var(--c-ink-soft);
+}
+
+.scanCard {
+  border-style: dashed;
+}
+
+.emoji {
+  font-size: var(--t-xl);
+}
+
+.back {
+  font: inherit;
+  padding: var(--s-2) var(--s-4);
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border, #d7d7e0);
+  background: var(--c-surface);
+  cursor: pointer;
+  align-self: flex-start;
+  transition: transform 0.15s var(--ease), box-shadow 0.15s var(--ease);
+}
+
+.back:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}

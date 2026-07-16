@@ -30,11 +30,50 @@
 .detail dd {
   margin: 0 0 8px;
 }
+.voiceBlock {
+  width: 100%;
+  display: grid;
+  gap: 6px;
+}
+.generate {
+  width: 100%;
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  border: 1px solid var(--accent, #6c5ce7);
+  border-radius: 12px;
+  background: none;
+  color: var(--accent, #6c5ce7);
+  cursor: pointer;
+}
+.generate:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.voiceDone {
+  margin: 0;
+  font-size: 14px;
+  color: #1f9d55;
+}
+.voiceError {
+  margin: 0;
+  font-size: 13px;
+  color: #b00020;
+  background: #fde7ea;
+  padding: 8px 10px;
+  border-radius: 10px;
+}
+.modeQuestion {
+  margin: 4px 0 0;
+  font-weight: 600;
+  font-size: 15px;
+}
 .use {
   width: 100%;
-  padding: 16px;
-  font-size: 16px;
+  padding: 14px 16px;
+  font-size: 15px;
   font-weight: 600;
+  text-align: start;
   border: none;
   border-radius: 16px;
   background: var(--accent, #6c5ce7);

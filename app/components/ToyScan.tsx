@@ -4,14 +4,21 @@ import { useRef, useState } from "react";
 import { downscaleImage } from "../../lib/image";
 import type { ToyInfo } from "../../lib/types";
 import { useLanguage } from "./LanguageProvider";
+import type { Voice } from "./useVoices";
 import styles from "./ToyScan.module.css";
 
-type Props = { onIdentified: (toy: ToyInfo) => void; onBack: () => void };
+type Props = {
+  voices: Voice[];
+  onIdentified: (toy: ToyInfo, suggestedVoiceId: string | null) => void;
+  onBack: () => void;
+};
 
 // A single "take a photo" button. `capture="environment"` opens the rear camera
 // on phones/tablets and a file picker on desktop — no camera libraries. The
-// photo is downscaled in the browser, then sent to /api/identify-toy.
-export default function ToyScan({ onIdentified, onBack }: Props) {
+// photo is downscaled in the browser, then sent to /api/identify-toy along
+// with the account's voice catalog, so the vision model can suggest the
+// closest-matching voice for the toy it identifies.
+export default function ToyScan({ voices, onIdentified, onBack }: Props) {
   const { t } = useLanguage();
   const [status, setStatus] = useState<"idle" | "working">("idle");
   const [error, setError] = useState<string | null>(null);
@@ -30,11 +37,20 @@ export default function ToyScan({ onIdentified, onBack }: Props) {
       const res = await fetch("/api/identify-toy", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ image: data, mediaType }),
+        body: JSON.stringify({
+          image: data,
+          mediaType,
+          voices: voices.map((v) => ({
+            voiceId: v.voiceId,
+            name: v.name,
+            labels: v.labels,
+            description: v.description,
+          })),
+        }),
       });
-      const payload: { toy?: ToyInfo | null; error?: string } = await res
+      const payload: { toy?: ToyInfo | null; suggestedVoiceId?: string | null; error?: string } = await res
         .json()
-        .catch(() => ({}) as { toy?: ToyInfo | null; error?: string });
+        .catch(() => ({}) as { toy?: ToyInfo | null; suggestedVoiceId?: string | null; error?: string });
       if (!res.ok) {
         throw new Error(payload.error ?? t.photoHttpError(res.status));
       }
@@ -43,7 +59,7 @@ export default function ToyScan({ onIdentified, onBack }: Props) {
         setStatus("idle");
         return;
       }
-      onIdentified(payload.toy);
+      onIdentified(payload.toy, payload.suggestedVoiceId ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : t.photoReadError);
       setStatus("idle");

@@ -29,16 +29,12 @@ describe("interpolation functions keep their arguments", () => {
   it("every per-language function embeds the name it is given", () => {
     for (const code of LANGUAGE_CODES) {
       const t = STRINGS[code];
-      expect(t.profileFilled("Mia", "goal"), code).toContain("Mia");
-      expect(t.profileFilled("Mia", "goal"), code).toContain("goal");
-      expect(t.profileMatches("Mia"), code).toContain("Mia");
       expect(t.voiceSubstituted("Aria"), code).toContain("Aria");
       expect(t.playPreview("Aria"), code).toContain("Aria");
       expect(t.stopPreview("Aria"), code).toContain("Aria");
       expect(t.howShouldToyPlay("Buzz"), code).toContain("Buzz");
       expect(t.beTheToyDesc("Buzz"), code).toContain("Buzz");
       expect(t.helpMePlayDesc("Buzz"), code).toContain("Buzz");
-      expect(t.povIntro("Buzz"), code).toContain("Buzz");
       expect(t.agentListening("Robo"), code).toContain("Robo");
       expect(t.agentTalking("Robo"), code).toContain("Robo");
       expect(t.asrAlarm("Mia"), code).toContain("Mia");

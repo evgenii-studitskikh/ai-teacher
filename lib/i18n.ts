@@ -1,5 +1,5 @@
 import type { PresetTeacherId } from "./preset-teachers";
-import type { Language, SessionConfig } from "./types";
+import type { Language } from "./types";
 
 // Every string the parent sees, in every language the app teaches in. Typed
 // as a Record over the Language union for the same reason the greetings are
@@ -18,60 +18,25 @@ export type UIStrings = {
   // Header
   languagePickerLabel: string;
 
-  // ModePicker
-  chooseMode: string;
-  lessonTitle: string;
-  lessonSub: string;
-  toyTitle: string;
-  toySub: string;
-
-  // ConfigForm
-  savedChildren: string;
-  pickUp: string;
-  who: string;
-  what: string;
-  how: string;
   childNameLabel: string;
   childAgeLabel: string;
   goalLabel: string;
-  purposeLabel: string;
   goalPlaceholder: string;
-  purposePlaceholder: string;
   extraLabel: string;
   extraPlaceholder: string;
-  agentNameLabel: string;
-  helperNameLabel: string;
-  voiceLegend: string;
   loadingVoices: string;
   sessionLength: string;
   startSession: string;
   noVoices: string;
   voicesFailed: (detail: string) => string;
-  profileFilled: (child: string, fields: string) => string;
-  profileMatches: (child: string) => string;
   voiceSubstituted: (name: string) => string;
   playPreview: (name: string) => string;
   stopPreview: (name: string) => string;
   howShouldToyPlay: (name: string) => string;
-  interactionMode: string;
   beTheToyTitle: string;
   beTheToyDesc: (toyName: string) => string;
   helpMePlayTitle: string;
   helpMePlayDesc: (toyName: string) => string;
-  povIntro: (toyName: string) => string;
-  // Human names for the SessionConfig keys a saved profile can fill in, for
-  // the profileFilled note. Derived from SessionConfig so adding a config
-  // field without a label here is a compile error. childName and language
-  // are deliberately absent: neither is ever restored from a profile (see
-  // ConfigForm's loadSaved); toy/toyMode are session-ephemeral, never in the
-  // note.
-  fieldNames: Record<
-    Exclude<
-      keyof SessionConfig,
-      "childName" | "language" | "toy" | "toyMode" | "kidId" | "teacherId" | "teacherPersonality"
-    >,
-    string
-  >;
 
   // SessionView
   gettingReady: string;
@@ -125,7 +90,6 @@ export type UIStrings = {
   confirmToy: string;
   personalityLabel: string;
   howYoullPlay: string;
-  useThisToy: string;
   retakePhoto: string;
 
   // Unlock
@@ -193,58 +157,27 @@ export const LANGUAGE_META: Record<Language, { nativeName: string; dir: "ltr" | 
 const en: UIStrings = {
   languagePickerLabel: "Language",
 
-  chooseMode: "Choose a mode",
-  lessonTitle: "Lesson",
-  lessonSub: "A short spoken lesson toward a goal you set.",
-  toyTitle: "Interactive Toy",
-  toySub: "Scan a real toy and bring it to life to play with.",
-
-  savedChildren: "Saved children",
-  pickUp: "Pick up where you left off",
-  who: "Who",
-  what: "What",
-  how: "How",
   childNameLabel: "Child's name",
   childAgeLabel: "Child's age",
   goalLabel: "Goal",
-  purposeLabel: "Purpose of play",
   goalPlaceholder: "Count to 10",
-  purposePlaceholder: "Practice colours; wind down before bed",
   extraLabel: "Extra instructions",
   extraPlaceholder: "Shy — praise them a lot. Loves dinosaurs.",
-  agentNameLabel: "Agent name",
-  helperNameLabel: "Helper's name",
-  voiceLegend: "Voice",
   loadingVoices: "Loading voices…",
   sessionLength: "Session length (minutes)",
   startSession: "Start session",
   noVoices: "Your ElevenLabs account has no voices in it. Add one at elevenlabs.io, then reload.",
   voicesFailed: (detail) =>
     `Could not load the voice list: ${detail} Check that ELEVENLABS_API_KEY in .env.local is set and valid, and that \`npm run dev\` is still running, then reload this page. Until the voices load, a session cannot be started.`,
-  profileFilled: (child, fields) =>
-    `Filled in from ${child}'s last session: ${fields}. Anything you already changed was left alone.`,
-  profileMatches: (child) =>
-    `Found a saved profile for ${child}; everything in it matches what's on the form already.`,
   voiceSubstituted: (name) =>
     `The voice saved for this child is no longer in your ElevenLabs account, so ${name} is selected instead. Pick a different one below if you'd rather — preview them with ▶.`,
   playPreview: (name) => `Play preview of ${name}`,
   stopPreview: (name) => `Stop preview of ${name}`,
   howShouldToyPlay: (name) => `How should ${name} play?`,
-  interactionMode: "Interaction mode",
   beTheToyTitle: "Be the toy",
   beTheToyDesc: (toyName) => `the AI talks as ${toyName}.`,
   helpMePlayTitle: "Help me play",
   helpMePlayDesc: (toyName) => `a guide helps the child play with ${toyName}.`,
-  povIntro: (toyName) => `${toyName} will introduce itself by name when the session starts.`,
-  fieldNames: {
-    agentName: "agent name",
-    voiceId: "voice",
-    childAge: "age",
-    goal: "goal",
-    directives: "extra instructions",
-    minutes: "session length",
-  },
-
   gettingReady: "Getting ready…",
   overridesAlarmTitle: "Session stopped — overrides are not enabled",
   overridesDisabledBody:
@@ -301,7 +234,6 @@ const en: UIStrings = {
   confirmToy: "Confirm the toy",
   personalityLabel: "Personality",
   howYoullPlay: "How you'll play",
-  useThisToy: "Use this toy",
   retakePhoto: "Retake photo",
 
   passcodeLabel: "Passcode",
@@ -355,58 +287,27 @@ const en: UIStrings = {
 const ru: UIStrings = {
   languagePickerLabel: "Язык",
 
-  chooseMode: "Выберите режим",
-  lessonTitle: "Урок",
-  lessonSub: "Короткий устный урок с целью, которую задаёте вы.",
-  toyTitle: "Интерактивная игрушка",
-  toySub: "Сфотографируйте настоящую игрушку и оживите её для игры.",
-
-  savedChildren: "Сохранённые дети",
-  pickUp: "Продолжите с того места, где остановились",
-  who: "Кто",
-  what: "Что",
-  how: "Как",
   childNameLabel: "Имя ребёнка",
   childAgeLabel: "Возраст ребёнка",
   goalLabel: "Цель",
-  purposeLabel: "Цель игры",
   goalPlaceholder: "Счёт до 10",
-  purposePlaceholder: "Учим цвета; спокойная игра перед сном",
   extraLabel: "Дополнительные указания",
   extraPlaceholder: "Стесняется — почаще хвалите. Обожает динозавров.",
-  agentNameLabel: "Имя агента",
-  helperNameLabel: "Имя помощника",
-  voiceLegend: "Голос",
   loadingVoices: "Загружаем голоса…",
   sessionLength: "Длительность занятия (минуты)",
   startSession: "Начать занятие",
   noVoices: "В вашем аккаунте ElevenLabs нет ни одного голоса. Добавьте голос на elevenlabs.io и перезагрузите страницу.",
   voicesFailed: (detail) =>
     `Не удалось загрузить список голосов: ${detail} Проверьте, что ELEVENLABS_API_KEY в .env.local задан и действителен, а \`npm run dev\` всё ещё запущен, затем перезагрузите страницу. Пока голоса не загрузятся, занятие начать нельзя.`,
-  profileFilled: (child, fields) =>
-    `Заполнено из прошлого занятия (${child}): ${fields}. Всё, что вы уже изменили, осталось как есть.`,
-  profileMatches: (child) =>
-    `Найден сохранённый профиль для ${child}; всё в нём совпадает с тем, что уже в форме.`,
   voiceSubstituted: (name) =>
     `Голоса, сохранённого для этого ребёнка, больше нет в вашем аккаунте ElevenLabs, поэтому выбран ${name}. Если хотите другой — выберите ниже, послушать можно кнопкой ▶.`,
   playPreview: (name) => `Прослушать голос ${name}`,
   stopPreview: (name) => `Остановить прослушивание ${name}`,
   howShouldToyPlay: (name) => `Как ${name} будет играть?`,
-  interactionMode: "Режим взаимодействия",
   beTheToyTitle: "Быть игрушкой",
   beTheToyDesc: (toyName) => `ИИ говорит от лица ${toyName}.`,
   helpMePlayTitle: "Помоги мне играть",
   helpMePlayDesc: (toyName) => `помощник помогает ребёнку играть с ${toyName}.`,
-  povIntro: (toyName) => `${toyName} представится по имени в начале занятия.`,
-  fieldNames: {
-    agentName: "имя агента",
-    voiceId: "голос",
-    childAge: "возраст",
-    goal: "цель",
-    directives: "дополнительные указания",
-    minutes: "длительность",
-  },
-
   gettingReady: "Готовимся…",
   overridesAlarmTitle: "Занятие остановлено — переопределения не включены",
   overridesDisabledBody:
@@ -463,7 +364,6 @@ const ru: UIStrings = {
   confirmToy: "Подтвердите игрушку",
   personalityLabel: "Характер",
   howYoullPlay: "Как будете играть",
-  useThisToy: "Играть с этой игрушкой",
   retakePhoto: "Переснять",
 
   passcodeLabel: "Код доступа",
@@ -524,58 +424,27 @@ const ru: UIStrings = {
 const es: UIStrings = {
   languagePickerLabel: "Idioma",
 
-  chooseMode: "Elige un modo",
-  lessonTitle: "Lección",
-  lessonSub: "Una breve lección hablada hacia una meta que tú fijas.",
-  toyTitle: "Juguete interactivo",
-  toySub: "Escanea un juguete real y dale vida para jugar.",
-
-  savedChildren: "Peques guardados",
-  pickUp: "Continúa donde lo dejaste",
-  who: "Quién",
-  what: "Qué",
-  how: "Cómo",
   childNameLabel: "Nombre del peque",
   childAgeLabel: "Edad del peque",
   goalLabel: "Meta",
-  purposeLabel: "Propósito del juego",
   goalPlaceholder: "Contar hasta 10",
-  purposePlaceholder: "Practicar los colores; relajarse antes de dormir",
   extraLabel: "Instrucciones adicionales",
   extraPlaceholder: "Le da vergüenza hablar: elógiale mucho. Le encantan los dinosaurios.",
-  agentNameLabel: "Nombre del agente",
-  helperNameLabel: "Nombre del ayudante",
-  voiceLegend: "Voz",
   loadingVoices: "Cargando voces…",
   sessionLength: "Duración de la sesión (minutos)",
   startSession: "Empezar sesión",
   noVoices: "Tu cuenta de ElevenLabs no tiene ninguna voz. Añade una en elevenlabs.io y recarga.",
   voicesFailed: (detail) =>
     `No se pudo cargar la lista de voces: ${detail} Comprueba que ELEVENLABS_API_KEY en .env.local está configurada y es válida, y que \`npm run dev\` sigue en marcha; luego recarga esta página. Hasta que las voces carguen, no se puede empezar una sesión.`,
-  profileFilled: (child, fields) =>
-    `Rellenado con la última sesión de ${child}: ${fields}. Lo que ya habías cambiado se dejó tal cual.`,
-  profileMatches: (child) =>
-    `Hay un perfil guardado para ${child}; todo coincide con lo que ya está en el formulario.`,
   voiceSubstituted: (name) =>
     `La voz guardada para este peque ya no está en tu cuenta de ElevenLabs, así que se seleccionó ${name}. Elige otra abajo si lo prefieres — escúchalas con ▶.`,
   playPreview: (name) => `Escuchar muestra de ${name}`,
   stopPreview: (name) => `Detener muestra de ${name}`,
   howShouldToyPlay: (name) => `¿Cómo debería jugar ${name}?`,
-  interactionMode: "Modo de interacción",
   beTheToyTitle: "Ser el juguete",
   beTheToyDesc: (toyName) => `la IA habla como ${toyName}.`,
   helpMePlayTitle: "Ayúdame a jugar",
   helpMePlayDesc: (toyName) => `un guía ayuda al peque a jugar con ${toyName}.`,
-  povIntro: (toyName) => `${toyName} se presentará por su nombre al empezar la sesión.`,
-  fieldNames: {
-    agentName: "nombre del agente",
-    voiceId: "voz",
-    childAge: "edad",
-    goal: "meta",
-    directives: "instrucciones adicionales",
-    minutes: "duración",
-  },
-
   gettingReady: "Preparando…",
   overridesAlarmTitle: "Sesión detenida — las anulaciones no están activadas",
   overridesDisabledBody:
@@ -632,7 +501,6 @@ const es: UIStrings = {
   confirmToy: "Confirma el juguete",
   personalityLabel: "Personalidad",
   howYoullPlay: "Cómo jugaréis",
-  useThisToy: "Usar este juguete",
   retakePhoto: "Repetir foto",
 
   passcodeLabel: "Código de acceso",
@@ -686,58 +554,27 @@ const es: UIStrings = {
 const de: UIStrings = {
   languagePickerLabel: "Sprache",
 
-  chooseMode: "Modus wählen",
-  lessonTitle: "Lektion",
-  lessonSub: "Eine kurze gesprochene Lektion mit einem Ziel, das du festlegst.",
-  toyTitle: "Interaktives Spielzeug",
-  toySub: "Scanne ein echtes Spielzeug und erwecke es zum Leben.",
-
-  savedChildren: "Gespeicherte Kinder",
-  pickUp: "Mach weiter, wo du aufgehört hast",
-  who: "Wer",
-  what: "Was",
-  how: "Wie",
   childNameLabel: "Name des Kindes",
   childAgeLabel: "Alter des Kindes",
   goalLabel: "Ziel",
-  purposeLabel: "Zweck des Spielens",
   goalPlaceholder: "Bis 10 zählen",
-  purposePlaceholder: "Farben üben; vor dem Schlafen zur Ruhe kommen",
   extraLabel: "Zusätzliche Hinweise",
   extraPlaceholder: "Schüchtern — viel loben. Liebt Dinosaurier.",
-  agentNameLabel: "Name des Agenten",
-  helperNameLabel: "Name des Helfers",
-  voiceLegend: "Stimme",
   loadingVoices: "Stimmen werden geladen…",
   sessionLength: "Dauer der Einheit (Minuten)",
   startSession: "Einheit starten",
   noVoices: "Dein ElevenLabs-Konto enthält keine Stimmen. Füge auf elevenlabs.io eine hinzu und lade die Seite neu.",
   voicesFailed: (detail) =>
     `Die Stimmenliste konnte nicht geladen werden: ${detail} Prüfe, ob ELEVENLABS_API_KEY in .env.local gesetzt und gültig ist und ob \`npm run dev\` noch läuft, und lade die Seite dann neu. Solange die Stimmen nicht geladen sind, kann keine Einheit gestartet werden.`,
-  profileFilled: (child, fields) =>
-    `Aus der letzten Einheit von ${child} übernommen: ${fields}. Alles, was du schon geändert hattest, blieb unangetastet.`,
-  profileMatches: (child) =>
-    `Für ${child} gibt es ein gespeichertes Profil; alles darin stimmt mit dem Formular überein.`,
   voiceSubstituted: (name) =>
     `Die für dieses Kind gespeicherte Stimme ist nicht mehr in deinem ElevenLabs-Konto, deshalb ist jetzt ${name} ausgewählt. Wähl unten gern eine andere — anhören mit ▶.`,
   playPreview: (name) => `Hörprobe von ${name} abspielen`,
   stopPreview: (name) => `Hörprobe von ${name} stoppen`,
   howShouldToyPlay: (name) => `Wie soll ${name} spielen?`,
-  interactionMode: "Interaktionsmodus",
   beTheToyTitle: "Das Spielzeug sein",
   beTheToyDesc: (toyName) => `die KI spricht als ${toyName}.`,
   helpMePlayTitle: "Hilf mir beim Spielen",
   helpMePlayDesc: (toyName) => `ein Begleiter hilft dem Kind, mit ${toyName} zu spielen.`,
-  povIntro: (toyName) => `${toyName} stellt sich zu Beginn der Einheit mit Namen vor.`,
-  fieldNames: {
-    agentName: "Name des Agenten",
-    voiceId: "Stimme",
-    childAge: "Alter",
-    goal: "Ziel",
-    directives: "zusätzliche Hinweise",
-    minutes: "Dauer",
-  },
-
   gettingReady: "Wird vorbereitet…",
   overridesAlarmTitle: "Einheit gestoppt — Overrides sind nicht aktiviert",
   overridesDisabledBody:
@@ -794,7 +631,6 @@ const de: UIStrings = {
   confirmToy: "Spielzeug bestätigen",
   personalityLabel: "Persönlichkeit",
   howYoullPlay: "So werdet ihr spielen",
-  useThisToy: "Dieses Spielzeug verwenden",
   retakePhoto: "Foto wiederholen",
 
   passcodeLabel: "Zugangscode",
@@ -852,57 +688,27 @@ const de: UIStrings = {
 const he: UIStrings = {
   languagePickerLabel: "שפה",
 
-  chooseMode: "בחירת מצב",
-  lessonTitle: "שיעור",
-  lessonSub: "שיעור מדובר קצר לקראת מטרה שאתם קובעים.",
-  toyTitle: "צעצוע אינטראקטיבי",
-  toySub: "סרקו צעצוע אמיתי והחיו אותו כדי לשחק.",
-
-  savedChildren: "ילדים שמורים",
-  pickUp: "המשיכו מאיפה שהפסקתם",
-  who: "מי",
-  what: "מה",
-  how: "איך",
   childNameLabel: "שם הילד או הילדה",
   childAgeLabel: "גיל",
   goalLabel: "מטרה",
-  purposeLabel: "מטרת המשחק",
   goalPlaceholder: "לספור עד 10",
-  purposePlaceholder: "לתרגל צבעים; להירגע לפני השינה",
   extraLabel: "הנחיות נוספות",
   extraPlaceholder: "קצת ביישנות — הרבו לשבח. דינוזאורים זו אהבה גדולה.",
-  agentNameLabel: "שם הסוכן",
-  helperNameLabel: "שם העוזר",
-  voiceLegend: "קול",
   loadingVoices: "הקולות בטעינה…",
   sessionLength: "אורך המפגש (דקות)",
   startSession: "התחלת מפגש",
   noVoices: "בחשבון ElevenLabs שלכם אין אף קול. הוסיפו אחד ב־elevenlabs.io וטענו מחדש.",
   voicesFailed: (detail) =>
     `לא ניתן לטעון את רשימת הקולות: ${detail} ודאו ש־ELEVENLABS_API_KEY בקובץ ‎.env.local מוגדר ותקף, וש־\`npm run dev\` עדיין רץ, ואז טענו את העמוד מחדש. עד שהקולות ייטענו, אי אפשר להתחיל מפגש.`,
-  profileFilled: (child, fields) =>
-    `הושלם מהמפגש הקודם של ${child}: ${fields}. כל מה שכבר שיניתם נשאר כפי שהוא.`,
-  profileMatches: (child) => `נמצא פרופיל שמור עבור ${child}; הכול בו תואם למה שכבר בטופס.`,
   voiceSubstituted: (name) =>
     `הקול שנשמר לילד הזה כבר לא נמצא בחשבון ElevenLabs שלכם, ולכן נבחר ${name}. אפשר לבחור אחר למטה — האזינו עם ▶.`,
   playPreview: (name) => `השמעת דוגמה של ${name}`,
   stopPreview: (name) => `עצירת הדוגמה של ${name}`,
   howShouldToyPlay: (name) => `איך ${name} ישחק?`,
-  interactionMode: "מצב אינטראקציה",
   beTheToyTitle: "להיות הצעצוע",
   beTheToyDesc: (toyName) => `הבינה המלאכותית מדברת בתור ${toyName}.`,
   helpMePlayTitle: "עזרו לי לשחק",
   helpMePlayDesc: (toyName) => `מדריך עוזר לילד לשחק עם ${toyName}.`,
-  povIntro: (toyName) => `${toyName} יציג את עצמו בשמו כשהמפגש יתחיל.`,
-  fieldNames: {
-    agentName: "שם הסוכן",
-    voiceId: "קול",
-    childAge: "גיל",
-    goal: "מטרה",
-    directives: "הנחיות נוספות",
-    minutes: "אורך המפגש",
-  },
-
   gettingReady: "רק רגע…",
   overridesAlarmTitle: "המפגש נעצר — הדריסות (overrides) אינן מופעלות",
   overridesDisabledBody:
@@ -957,7 +763,6 @@ const he: UIStrings = {
   confirmToy: "אישור הצעצוע",
   personalityLabel: "אופי",
   howYoullPlay: "איך תשחקו",
-  useThisToy: "לשחק עם הצעצוע הזה",
   retakePhoto: "צילום מחדש",
 
   passcodeLabel: "קוד גישה",
@@ -1011,58 +816,27 @@ const he: UIStrings = {
 const tl: UIStrings = {
   languagePickerLabel: "Wika",
 
-  chooseMode: "Pumili ng mode",
-  lessonTitle: "Aralin",
-  lessonSub: "Maikling aralin sa pagsasalita tungo sa layuning itinakda mo.",
-  toyTitle: "Interactive na Laruan",
-  toySub: "I-scan ang totoong laruan at buhayin ito para makipaglaro.",
-
-  savedChildren: "Mga naka-save na bata",
-  pickUp: "Ituloy kung saan ka huminto",
-  who: "Sino",
-  what: "Ano",
-  how: "Paano",
   childNameLabel: "Pangalan ng bata",
   childAgeLabel: "Edad ng bata",
   goalLabel: "Layunin",
-  purposeLabel: "Layunin ng paglalaro",
   goalPlaceholder: "Magbilang hanggang 10",
-  purposePlaceholder: "Mag-praktis ng mga kulay; kumalma bago matulog",
   extraLabel: "Karagdagang bilin",
   extraPlaceholder: "Mahiyain — purihin nang madalas. Mahilig sa dinosaur.",
-  agentNameLabel: "Pangalan ng agent",
-  helperNameLabel: "Pangalan ng katulong",
-  voiceLegend: "Boses",
   loadingVoices: "Nilo-load ang mga boses…",
   sessionLength: "Tagal ng session (minuto)",
   startSession: "Simulan ang session",
   noVoices: "Walang boses ang iyong ElevenLabs account. Magdagdag ng isa sa elevenlabs.io, tapos i-reload.",
   voicesFailed: (detail) =>
     `Hindi ma-load ang listahan ng mga boses: ${detail} Tiyaking naka-set at wasto ang ELEVENLABS_API_KEY sa .env.local, at tumatakbo pa ang \`npm run dev\`, tapos i-reload ang page na ito. Hangga't hindi na-load ang mga boses, hindi makakapagsimula ng session.`,
-  profileFilled: (child, fields) =>
-    `Pinunan mula sa huling session ni ${child}: ${fields}. Hindi ginalaw ang anumang binago mo na.`,
-  profileMatches: (child) =>
-    `May nakitang naka-save na profile para kay ${child}; tugma ang lahat dito sa nasa form na.`,
   voiceSubstituted: (name) =>
     `Wala na sa iyong ElevenLabs account ang boses na naka-save para sa batang ito, kaya ${name} ang napili. Pumili ng iba sa ibaba kung gusto mo — pakinggan sila gamit ang ▶.`,
   playPreview: (name) => `I-play ang preview ni ${name}`,
   stopPreview: (name) => `Itigil ang preview ni ${name}`,
   howShouldToyPlay: (name) => `Paano dapat maglaro si ${name}?`,
-  interactionMode: "Paraan ng paglalaro",
   beTheToyTitle: "Maging ang laruan",
   beTheToyDesc: (toyName) => `magsasalita ang AI bilang si ${toyName}.`,
   helpMePlayTitle: "Tulungan akong maglaro",
   helpMePlayDesc: (toyName) => `may gabay na tutulong sa bata na makipaglaro kay ${toyName}.`,
-  povIntro: (toyName) => `Magpapakilala si ${toyName} sa sarili niyang pangalan sa simula ng session.`,
-  fieldNames: {
-    agentName: "pangalan ng agent",
-    voiceId: "boses",
-    childAge: "edad",
-    goal: "layunin",
-    directives: "karagdagang bilin",
-    minutes: "tagal",
-  },
-
   gettingReady: "Naghahanda…",
   overridesAlarmTitle: "Itinigil ang session — hindi naka-enable ang mga override",
   overridesDisabledBody:
@@ -1120,7 +894,6 @@ const tl: UIStrings = {
   confirmToy: "Kumpirmahin ang laruan",
   personalityLabel: "Ugali",
   howYoullPlay: "Paano kayo maglalaro",
-  useThisToy: "Gamitin ang laruang ito",
   retakePhoto: "Kunan ulit",
 
   passcodeLabel: "Passcode",
@@ -1174,58 +947,27 @@ const tl: UIStrings = {
 const uk: UIStrings = {
   languagePickerLabel: "Мова",
 
-  chooseMode: "Оберіть режим",
-  lessonTitle: "Урок",
-  lessonSub: "Короткий усний урок із метою, яку задаєте ви.",
-  toyTitle: "Інтерактивна іграшка",
-  toySub: "Відскануйте справжню іграшку й оживіть її для гри.",
-
-  savedChildren: "Збережені діти",
-  pickUp: "Продовжте з того місця, де зупинилися",
-  who: "Хто",
-  what: "Що",
-  how: "Як",
   childNameLabel: "Ім'я дитини",
   childAgeLabel: "Вік дитини",
   goalLabel: "Мета",
-  purposeLabel: "Мета гри",
   goalPlaceholder: "Лічба до 10",
-  purposePlaceholder: "Вчимо кольори; спокійна гра перед сном",
   extraLabel: "Додаткові вказівки",
   extraPlaceholder: "Соромиться — частіше хваліть. Обожнює динозаврів.",
-  agentNameLabel: "Ім'я агента",
-  helperNameLabel: "Ім'я помічника",
-  voiceLegend: "Голос",
   loadingVoices: "Завантажуємо голоси…",
   sessionLength: "Тривалість заняття (хвилини)",
   startSession: "Почати заняття",
   noVoices: "У вашому акаунті ElevenLabs немає жодного голосу. Додайте голос на elevenlabs.io і перезавантажте сторінку.",
   voicesFailed: (detail) =>
     `Не вдалося завантажити список голосів: ${detail} Перевірте, що ELEVENLABS_API_KEY у .env.local задано і він дійсний, а \`npm run dev\` досі запущено, потім перезавантажте сторінку. Поки голоси не завантажаться, заняття почати не можна.`,
-  profileFilled: (child, fields) =>
-    `Заповнено з минулого заняття (${child}): ${fields}. Усе, що ви вже змінили, залишилося як є.`,
-  profileMatches: (child) =>
-    `Знайдено збережений профіль для ${child}; усе в ньому збігається з тим, що вже у формі.`,
   voiceSubstituted: (name) =>
     `Голосу, збереженого для цієї дитини, більше немає у вашому акаунті ElevenLabs, тому обрано ${name}. Якщо хочете інший — оберіть нижче, послухати можна кнопкою ▶.`,
   playPreview: (name) => `Прослухати голос ${name}`,
   stopPreview: (name) => `Зупинити прослуховування ${name}`,
   howShouldToyPlay: (name) => `Як ${name} гратиме?`,
-  interactionMode: "Режим взаємодії",
   beTheToyTitle: "Бути іграшкою",
   beTheToyDesc: (toyName) => `ШІ говорить від імені ${toyName}.`,
   helpMePlayTitle: "Допоможи мені грати",
   helpMePlayDesc: (toyName) => `помічник допомагає дитині грати з ${toyName}.`,
-  povIntro: (toyName) => `${toyName} представиться на ім'я на початку заняття.`,
-  fieldNames: {
-    agentName: "ім'я агента",
-    voiceId: "голос",
-    childAge: "вік",
-    goal: "мета",
-    directives: "додаткові вказівки",
-    minutes: "тривалість",
-  },
-
   gettingReady: "Готуємося…",
   overridesAlarmTitle: "Заняття зупинено — перевизначення не ввімкнені",
   overridesDisabledBody:
@@ -1282,7 +1024,6 @@ const uk: UIStrings = {
   confirmToy: "Підтвердьте іграшку",
   personalityLabel: "Характер",
   howYoullPlay: "Як гратимете",
-  useThisToy: "Грати з цією іграшкою",
   retakePhoto: "Перезняти",
 
   passcodeLabel: "Код доступу",

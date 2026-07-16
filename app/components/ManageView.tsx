@@ -21,7 +21,7 @@ type Props = {
 
 type Editing =
   | { kind: "kid"; kid: Kid }
-  | { kind: "teacher"; teacher: Teacher; isNew: boolean }
+  | { kind: "teacher"; teacher: Teacher }
   | null;
 
 // Two-tab management: Children and Teachers. Edits are inline; deletes are
@@ -207,7 +207,6 @@ export default function ManageView({ kids, teachers, presets, voices, voicesErro
                     onClick={() =>
                       setEditing({
                         kind: "teacher",
-                        isNew: true,
                         teacher: {
                           ...teacher,
                           id: crypto.randomUUID(),
@@ -242,7 +241,7 @@ export default function ManageView({ kids, teachers, presets, voices, voicesErro
                         {voiceGen?.id === teacher.id && voiceGen.state === "working" ? t.generatingVoice : t.generateVoice}
                       </button>
                     ))}
-                  <button type="button" className={styles.action} onClick={() => setEditing({ kind: "teacher", teacher, isNew: false })}>
+                  <button type="button" className={styles.action} onClick={() => setEditing({ kind: "teacher", teacher })}>
                     {t.edit}
                   </button>
                   <button type="button" className={styles.danger} onClick={() => confirmDelete(teacher.id, () => deleteTeacher(teacher.id))}>
@@ -261,7 +260,6 @@ export default function ManageView({ kids, teachers, presets, voices, voicesErro
             onClick={() =>
               setEditing({
                 kind: "teacher",
-                isNew: true,
                 teacher: {
                   id: crypto.randomUUID(),
                   kind: "custom",

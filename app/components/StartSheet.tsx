@@ -96,7 +96,7 @@ export default function StartSheet({ kid, teacher, pendingToy, voices, voicesErr
 
       <div className={styles.field}>
         <span className={styles.label}>{t.durationLabel}</span>
-        <div className={styles.chips} role="radiogroup" aria-label={t.durationLabel}>
+        <div className={styles.chips} role="group" aria-label={t.durationLabel}>
           {MINUTE_CHIPS.map((m) => (
             <button
               key={m}

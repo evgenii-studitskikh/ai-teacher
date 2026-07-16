@@ -25,7 +25,7 @@ describe("LANGUAGE_META", () => {
 describe("interpolation functions keep their arguments", () => {
   // Names must pass through into the displayed string in every language —
   // a translation that drops the child's or the voice's name reads as
-  // nonsense ("Filled in from 's last session").
+  // nonsense ("Could not load the voices: .").
   it("every per-language function embeds the name it is given", () => {
     for (const code of LANGUAGE_CODES) {
       const t = STRINGS[code];

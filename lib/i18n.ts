@@ -170,7 +170,7 @@ const en: UIStrings = {
   voicesFailed: (detail) =>
     `Could not load the voice list: ${detail} Check that ELEVENLABS_API_KEY in .env.local is set and valid, and that \`npm run dev\` is still running, then reload this page. Until the voices load, a session cannot be started.`,
   voiceSubstituted: (name) =>
-    `The voice saved for this child is no longer in your ElevenLabs account, so ${name} is selected instead. Pick a different one below if you'd rather — preview them with ▶.`,
+    `The saved voice for this teacher is no longer in your ElevenLabs account, so ${name} is selected instead. Pick a different one below if you'd rather — preview them with ▶.`,
   playPreview: (name) => `Play preview of ${name}`,
   stopPreview: (name) => `Stop preview of ${name}`,
   howShouldToyPlay: (name) => `How should ${name} play?`,
@@ -300,7 +300,7 @@ const ru: UIStrings = {
   voicesFailed: (detail) =>
     `Не удалось загрузить список голосов: ${detail} Проверьте, что ELEVENLABS_API_KEY в .env.local задан и действителен, а \`npm run dev\` всё ещё запущен, затем перезагрузите страницу. Пока голоса не загрузятся, занятие начать нельзя.`,
   voiceSubstituted: (name) =>
-    `Голоса, сохранённого для этого ребёнка, больше нет в вашем аккаунте ElevenLabs, поэтому выбран ${name}. Если хотите другой — выберите ниже, послушать можно кнопкой ▶.`,
+    `Голоса, сохранённого для этого учителя, больше нет в вашем аккаунте ElevenLabs, поэтому выбран ${name}. Если хотите другой — выберите ниже, послушать можно кнопкой ▶.`,
   playPreview: (name) => `Прослушать голос ${name}`,
   stopPreview: (name) => `Остановить прослушивание ${name}`,
   howShouldToyPlay: (name) => `Как ${name} будет играть?`,
@@ -437,7 +437,7 @@ const es: UIStrings = {
   voicesFailed: (detail) =>
     `No se pudo cargar la lista de voces: ${detail} Comprueba que ELEVENLABS_API_KEY en .env.local está configurada y es válida, y que \`npm run dev\` sigue en marcha; luego recarga esta página. Hasta que las voces carguen, no se puede empezar una sesión.`,
   voiceSubstituted: (name) =>
-    `La voz guardada para este peque ya no está en tu cuenta de ElevenLabs, así que se seleccionó ${name}. Elige otra abajo si lo prefieres — escúchalas con ▶.`,
+    `La voz guardada para este profe ya no está en tu cuenta de ElevenLabs, así que se seleccionó ${name}. Elige otra abajo si lo prefieres — escúchalas con ▶.`,
   playPreview: (name) => `Escuchar muestra de ${name}`,
   stopPreview: (name) => `Detener muestra de ${name}`,
   howShouldToyPlay: (name) => `¿Cómo debería jugar ${name}?`,
@@ -567,7 +567,7 @@ const de: UIStrings = {
   voicesFailed: (detail) =>
     `Die Stimmenliste konnte nicht geladen werden: ${detail} Prüfe, ob ELEVENLABS_API_KEY in .env.local gesetzt und gültig ist und ob \`npm run dev\` noch läuft, und lade die Seite dann neu. Solange die Stimmen nicht geladen sind, kann keine Einheit gestartet werden.`,
   voiceSubstituted: (name) =>
-    `Die für dieses Kind gespeicherte Stimme ist nicht mehr in deinem ElevenLabs-Konto, deshalb ist jetzt ${name} ausgewählt. Wähl unten gern eine andere — anhören mit ▶.`,
+    `Die für diese Lehrkraft gespeicherte Stimme ist nicht mehr in deinem ElevenLabs-Konto, deshalb ist jetzt ${name} ausgewählt. Wähl unten gern eine andere — anhören mit ▶.`,
   playPreview: (name) => `Hörprobe von ${name} abspielen`,
   stopPreview: (name) => `Hörprobe von ${name} stoppen`,
   howShouldToyPlay: (name) => `Wie soll ${name} spielen?`,
@@ -701,7 +701,7 @@ const he: UIStrings = {
   voicesFailed: (detail) =>
     `לא ניתן לטעון את רשימת הקולות: ${detail} ודאו ש־ELEVENLABS_API_KEY בקובץ ‎.env.local מוגדר ותקף, וש־\`npm run dev\` עדיין רץ, ואז טענו את העמוד מחדש. עד שהקולות ייטענו, אי אפשר להתחיל מפגש.`,
   voiceSubstituted: (name) =>
-    `הקול שנשמר לילד הזה כבר לא נמצא בחשבון ElevenLabs שלכם, ולכן נבחר ${name}. אפשר לבחור אחר למטה — האזינו עם ▶.`,
+    `הקול שנשמר למורה הזה כבר לא נמצא בחשבון ElevenLabs שלכם, ולכן נבחר ${name}. אפשר לבחור אחר למטה — האזינו עם ▶.`,
   playPreview: (name) => `השמעת דוגמה של ${name}`,
   stopPreview: (name) => `עצירת הדוגמה של ${name}`,
   howShouldToyPlay: (name) => `איך ${name} ישחק?`,
@@ -786,7 +786,7 @@ const he: UIStrings = {
   playingWith: (toyName) => `משחקים עם ${toyName} — עכשיו בחרו עוזר.`,
   presetTeachers: {
     generalist: { name: "סאני", description: "מורה חם ורב־תחומי לכל נושא." },
-    storyteller: { name: "לונה", description: "הופך כל שיעור לסיפור." },
+    storyteller: { name: "לונה", description: "הופכת כל שיעור לסיפור." },
     mathCoach: { name: "מקס", description: "מאמן סבלני למספרים וספירה." },
   },
 
@@ -829,7 +829,7 @@ const tl: UIStrings = {
   voicesFailed: (detail) =>
     `Hindi ma-load ang listahan ng mga boses: ${detail} Tiyaking naka-set at wasto ang ELEVENLABS_API_KEY sa .env.local, at tumatakbo pa ang \`npm run dev\`, tapos i-reload ang page na ito. Hangga't hindi na-load ang mga boses, hindi makakapagsimula ng session.`,
   voiceSubstituted: (name) =>
-    `Wala na sa iyong ElevenLabs account ang boses na naka-save para sa batang ito, kaya ${name} ang napili. Pumili ng iba sa ibaba kung gusto mo — pakinggan sila gamit ang ▶.`,
+    `Wala na sa iyong ElevenLabs account ang boses na naka-save para sa gurong ito, kaya ${name} ang napili. Pumili ng iba sa ibaba kung gusto mo — pakinggan sila gamit ang ▶.`,
   playPreview: (name) => `I-play ang preview ni ${name}`,
   stopPreview: (name) => `Itigil ang preview ni ${name}`,
   howShouldToyPlay: (name) => `Paano dapat maglaro si ${name}?`,
@@ -960,7 +960,7 @@ const uk: UIStrings = {
   voicesFailed: (detail) =>
     `Не вдалося завантажити список голосів: ${detail} Перевірте, що ELEVENLABS_API_KEY у .env.local задано і він дійсний, а \`npm run dev\` досі запущено, потім перезавантажте сторінку. Поки голоси не завантажаться, заняття почати не можна.`,
   voiceSubstituted: (name) =>
-    `Голосу, збереженого для цієї дитини, більше немає у вашому акаунті ElevenLabs, тому обрано ${name}. Якщо хочете інший — оберіть нижче, послухати можна кнопкою ▶.`,
+    `Голосу, збереженого для цього вчителя, більше немає у вашому акаунті ElevenLabs, тому обрано ${name}. Якщо хочете інший — оберіть нижче, послухати можна кнопкою ▶.`,
   playPreview: (name) => `Прослухати голос ${name}`,
   stopPreview: (name) => `Зупинити прослуховування ${name}`,
   howShouldToyPlay: (name) => `Як ${name} гратиме?`,

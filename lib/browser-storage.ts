@@ -269,7 +269,7 @@ const MIGRATION_KEY = "ai-teacher:profiles-migrated";
 // child profiles used, and the model names the same toy the same way.
 export function upsertToyTeacher(
   toy: ToyInfo,
-  voiceId: string | null,
+  voice: { suggested: string | null; designed: string | null },
   store: Storage = defaultStore(),
 ): Teacher {
   const existing = listTeachers(store).find(
@@ -279,9 +279,12 @@ export function upsertToyTeacher(
     id: existing?.id ?? crypto.randomUUID(),
     kind: "toy",
     name: toy.name,
-    // A fresh suggestion wins; no suggestion keeps whatever match (or designed
-    // voice) the toy already had.
-    voiceId: voiceId ?? existing?.voiceId ?? null,
+    // A voice explicitly designed THIS scan always wins — the parent just
+    // paid credits for it. Otherwise an existing non-null voiceId is kept: a
+    // catalog suggestion is near-certain on every re-scan, and it must never
+    // silently clobber a voice (matched or designed) the toy already has. A
+    // suggestion only fills the voice when nothing is stored yet.
+    voiceId: voice.designed ?? existing?.voiceId ?? voice.suggested ?? null,
     personality: toy.personality,
     toy,
     createdAt: existing?.createdAt ?? new Date().toISOString(),

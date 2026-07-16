@@ -133,7 +133,7 @@ export default function Page() {
             // voice beats the catalog suggestion.
             let teacher: Teacher;
             try {
-              teacher = upsertToyTeacher(toy, designedVoiceId ?? suggestedVoiceId);
+              teacher = upsertToyTeacher(toy, { suggested: suggestedVoiceId, designed: designedVoiceId });
             } catch {
               // Blocked storage: play with an unsaved, one-off toy teacher.
               teacher = {

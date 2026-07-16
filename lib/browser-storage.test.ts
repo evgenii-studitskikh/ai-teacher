@@ -432,7 +432,7 @@ const toy: ToyInfo = {
 
 describe("upsertToyTeacher", () => {
   it("creates a toy teacher with the toy attached", () => {
-    const t = upsertToyTeacher(toy, "v9", store);
+    const t = upsertToyTeacher(toy, { suggested: "v9", designed: null }, store);
     expect(t.kind).toBe("toy");
     expect(t.name).toBe("Buzz Lightyear");
     expect(t.voiceId).toBe("v9");
@@ -441,8 +441,12 @@ describe("upsertToyTeacher", () => {
   });
 
   it("re-scanning the same toy updates instead of duplicating", () => {
-    const first = upsertToyTeacher(toy, "v9", store);
-    const second = upsertToyTeacher({ ...toy, personality: "brave and kind" }, null, store);
+    const first = upsertToyTeacher(toy, { suggested: "v9", designed: null }, store);
+    const second = upsertToyTeacher(
+      { ...toy, personality: "brave and kind" },
+      { suggested: null, designed: null },
+      store,
+    );
     expect(second.id).toBe(first.id);
     expect(listTeachers(store)).toHaveLength(1);
     expect(listTeachers(store)[0].personality).toBe("brave and kind");
@@ -452,8 +456,37 @@ describe("upsertToyTeacher", () => {
 
   it("does not match a custom teacher with the same name", () => {
     saveTeacher({ ...teacher, name: "Buzz Lightyear" }, store);
-    upsertToyTeacher(toy, null, store);
+    upsertToyTeacher(toy, { suggested: null, designed: null }, store);
     expect(listTeachers(store)).toHaveLength(2);
+  });
+
+  // The bug this guards against: a parent pays ElevenLabs credits to design a
+  // bespoke voice for a toy, then re-scans it later (lighting changed, a new
+  // photo). The catalog suggester runs again and returns SOME voice almost
+  // every time — that fresh suggestion must never silently overwrite a voice
+  // that was already there.
+  it("re-scan with a suggestion keeps an existing voice", () => {
+    upsertToyTeacher(toy, { suggested: null, designed: "designed-1" }, store);
+    const second = upsertToyTeacher(toy, { suggested: "catalog-suggestion", designed: null }, store);
+    expect(second.voiceId).toBe("designed-1");
+    expect(listTeachers(store)[0].voiceId).toBe("designed-1");
+  });
+
+  it("a designed voice replaces an existing voice — the parent explicitly paid for it this scan", () => {
+    upsertToyTeacher(toy, { suggested: null, designed: "old-designed" }, store);
+    const second = upsertToyTeacher(toy, { suggested: "catalog-suggestion", designed: "new-designed" }, store);
+    expect(second.voiceId).toBe("new-designed");
+  });
+
+  it("re-scan with no suggestion keeps voice", () => {
+    upsertToyTeacher(toy, { suggested: "v9", designed: null }, store);
+    const second = upsertToyTeacher(toy, { suggested: null, designed: null }, store);
+    expect(second.voiceId).toBe("v9");
+  });
+
+  it("a suggestion fills a voice when nothing is stored yet", () => {
+    const t = upsertToyTeacher(toy, { suggested: "v9", designed: null }, store);
+    expect(t.voiceId).toBe("v9");
   });
 });
 

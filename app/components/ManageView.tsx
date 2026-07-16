@@ -83,6 +83,12 @@ export default function ManageView({ kids, teachers, presets, voices, voicesErro
           onChanged();
         }}
       >
+        {/* Session-summary continuity (loadLatestSummary in
+            lib/browser-storage.ts) is keyed by the child's NAME, not kidId —
+            so renaming a kid here silently starts their continuity over: the
+            next session will not find last time's summary under the new
+            name. Accepted for a single-family app where a rename is rare and
+            the parent notices; a real fix would key summaries by kidId. */}
         <label htmlFor={`${formId}-kname`}>{t.childNameLabel}</label>
         <input
           id={`${formId}-kname`}
@@ -110,6 +116,7 @@ export default function ManageView({ kids, teachers, presets, voices, voicesErro
 
   if (editing?.kind === "teacher") {
     const teacher = editing.teacher;
+    const isToy = teacher.kind === "toy";
     return (
       <form
         className={styles.editor}
@@ -124,21 +131,41 @@ export default function ManageView({ kids, teachers, presets, voices, voicesErro
           onChanged();
         }}
       >
-        <label htmlFor={`${formId}-tname`}>{t.teacherNameLabel}</label>
-        <input
-          id={`${formId}-tname`}
-          value={teacher.name}
-          onChange={(e) => setEditing({ ...editing, teacher: { ...teacher, name: e.target.value } })}
-          required
-        />
-        <label htmlFor={`${formId}-tpers`}>{t.personalityFieldLabel}</label>
-        <textarea
-          id={`${formId}-tpers`}
-          value={teacher.personality}
-          onChange={(e) => setEditing({ ...editing, teacher: { ...teacher, personality: e.target.value } })}
-          placeholder={t.personalityPlaceholder}
-          rows={3}
-        />
+        <label htmlFor={isToy ? undefined : `${formId}-tname`}>{t.teacherNameLabel}</label>
+        {isToy ? (
+          // A toy teacher's name is not editable here: it is how re-scans are
+          // matched (upsertToyTeacher matches by normalized name) and it is
+          // the identity baked into the toy's greeting/prompt. Renaming it in
+          // this form would desync the two.
+          <p className={styles.rowName}>{teacher.name}</p>
+        ) : (
+          <input
+            id={`${formId}-tname`}
+            value={teacher.name}
+            onChange={(e) => setEditing({ ...editing, teacher: { ...teacher, name: e.target.value } })}
+            required
+          />
+        )}
+        {!isToy && (
+          <>
+            <label htmlFor={`${formId}-tpers`}>{t.personalityFieldLabel}</label>
+            <textarea
+              id={`${formId}-tpers`}
+              value={teacher.personality}
+              onChange={(e) => setEditing({ ...editing, teacher: { ...teacher, personality: e.target.value } })}
+              placeholder={t.personalityPlaceholder}
+              rows={3}
+            />
+          </>
+        )}
+        {isToy && (
+          // Read-only: a POV toy session is built from teacher.toy.personality,
+          // not this field, so editing it here would be a dead control.
+          <>
+            <label>{t.personalityFieldLabel}</label>
+            <p className={styles.rowSub}>{teacher.personality}</p>
+          </>
+        )}
         {voicesError && (
           <p role="alert" className={styles.error}>
             {voicesError.kind === "noVoices" ? t.noVoices : t.voicesFailed(voicesError.detail)}
@@ -162,11 +189,14 @@ export default function ManageView({ kids, teachers, presets, voices, voicesErro
 
   return (
     <section className={styles.manage} aria-label={t.manage}>
-      <div className={styles.tabs} role="tablist">
-        <button type="button" role="tab" aria-selected={tab === "kids"} className={tab === "kids" ? styles.tabOn : styles.tab} onClick={() => setTab("kids")}>
+      {/* Plain toggle buttons, not a tablist: there are no tabpanels and no
+          arrow-key wiring, so the ARIA tab pattern's contract would not be
+          met. `group` + `aria-pressed` describes what this actually is. */}
+      <div className={styles.tabs} role="group">
+        <button type="button" aria-pressed={tab === "kids"} className={tab === "kids" ? styles.tabOn : styles.tab} onClick={() => setTab("kids")}>
           {t.kidsTab}
         </button>
-        <button type="button" role="tab" aria-selected={tab === "teachers"} className={tab === "teachers" ? styles.tabOn : styles.tab} onClick={() => setTab("teachers")}>
+        <button type="button" aria-pressed={tab === "teachers"} className={tab === "teachers" ? styles.tabOn : styles.tab} onClick={() => setTab("teachers")}>
           {t.teachersTab}
         </button>
       </div>

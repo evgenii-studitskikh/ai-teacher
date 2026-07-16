@@ -64,7 +64,13 @@ export type UIStrings = {
   // are deliberately absent: neither is ever restored from a profile (see
   // ConfigForm's loadSaved); toy/toyMode are session-ephemeral, never in the
   // note.
-  fieldNames: Record<Exclude<keyof SessionConfig, "childName" | "language" | "toy" | "toyMode">, string>;
+  fieldNames: Record<
+    Exclude<
+      keyof SessionConfig,
+      "childName" | "language" | "toy" | "toyMode" | "kidId" | "teacherId" | "teacherPersonality"
+    >,
+    string
+  >;
 
   // SessionView
   gettingReady: string;

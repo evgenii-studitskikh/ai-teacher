@@ -23,6 +23,12 @@ export type SessionConfig = {
   goal: string;
   directives: string;
   minutes: number;
+  // Which saved kid/teacher this session was assembled from, for the session
+  // record. Optional: nothing downstream depends on them.
+  kidId?: string;
+  teacherId?: string;
+  // The teacher's personality prose, woven into the prompt when present.
+  teacherPersonality?: string;
   // Present only for an Interactive Toy session. Their presence is what puts
   // buildPrompt into toy mode; absent, everything behaves as a normal lesson.
   toy?: ToyInfo;
@@ -39,6 +45,41 @@ export type ToyInfo = {
   character: string; // "a brave space-ranger action figure"
   personality: string; // "confident, heroic, a little goofy"
   howToPlay: string; // grounded suggestions for play with this toy
+};
+
+// A child, as a first-class entity. Previously a "kid" was implicitly the last
+// SessionConfig saved under a name; now name and age live here and the rest of
+// a session's settings are assembled at start time.
+export type Kid = {
+  id: string; // crypto.randomUUID()
+  name: string;
+  age: number; // 2–12
+  createdAt: string; // ISO
+};
+
+export type TeacherKind = "preset" | "custom" | "toy";
+
+// A teacher profile. Presets live in code (lib/preset-teachers.ts) and are
+// never stored; custom and toy teachers are stored in localStorage. A toy
+// teacher is a scanned POV toy made reusable: its ToyInfo rides along and puts
+// buildPrompt into toy mode when the session starts.
+export type Teacher = {
+  id: string; // uuid for stored teachers; "preset:<name>" for presets
+  kind: TeacherKind;
+  name: string;
+  voiceId: string | null; // null = resolve automatically at start
+  personality: string; // free-form English prose, woven into the prompt
+  toy?: ToyInfo; // only for kind "toy"
+  createdAt: string; // "" for presets (stable, never rendered)
+};
+
+// What the start sheet pre-fills for a kid: everything their previous session
+// chose. Keyed by kid id in storage.
+export type LastStart = {
+  teacherId: string;
+  goal: string;
+  directives: string;
+  minutes: number;
 };
 
 export type TranscriptTurn = {

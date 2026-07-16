@@ -1,0 +1,168 @@
+/* app/components/StartSheet.module.css */
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  /* Extra clearance below the last field so it can always be scrolled fully
+     clear of the sticky .startBar rather than staying pinned behind it —
+     same reasoning as ConfigForm's .form. */
+  padding-block-end: var(--s-7);
+}
+
+/* The kid/teacher/toy summary the sheet was reached with, doubling as the
+   "go back and change something" control. Styled like the other pickers'
+   .card (surface + shadow-on-interaction), not like .field's inputs — this
+   is a button, not data entry. */
+.selection {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--border, #d7d7e0);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: transform 0.15s var(--ease), box-shadow 0.15s var(--ease);
+}
+.selection:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
+.selection:active {
+  transform: translateY(1px);
+}
+.selectionNames {
+  font-weight: 700;
+  color: var(--c-ink);
+}
+.selectionChange {
+  color: var(--c-ink-soft);
+  font-size: var(--t-xs);
+}
+
+/* ---- Duration chips ----------------------------------------------------
+   A row of quick picks plus a free-entry number field for anything outside
+   the common durations, sharing one radiogroup semantics with the parent
+   component (see StartSheet.tsx). */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  align-items: center;
+}
+.chip {
+  font: inherit;
+  min-block-size: var(--tap);
+  padding: var(--s-2) var(--s-4);
+  border: 1px solid var(--border, #d7d7e0);
+  border-radius: var(--r-full);
+  background: var(--c-surface);
+  cursor: pointer;
+  transition: transform 0.15s var(--ease), box-shadow 0.15s var(--ease);
+}
+.chip:hover {
+  box-shadow: var(--shadow);
+}
+.chip:active {
+  transform: translateY(1px);
+}
+.chipOn {
+  font-weight: 700;
+  border-width: 2px;
+  border-color: var(--c-primary);
+  color: var(--c-primary);
+  background: color-mix(in srgb, var(--c-primary) 12%, transparent);
+}
+.minutesInput {
+  inline-size: 4.5rem;
+  min-block-size: var(--tap);
+  font: inherit;
+  text-align: center;
+  padding: var(--s-2) var(--s-3);
+  background: var(--c-surface);
+  border: 2px solid transparent;
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow);
+}
+.minutesInput:focus {
+  border-color: var(--c-primary);
+}
+.label {
+  font-size: var(--t-sm);
+  font-weight: 700;
+  color: var(--c-ink);
+}
+
+/* ---- Field — verbatim from ConfigForm.module.css (dies in Task 14). --- */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.field label {
+  font-size: var(--t-sm);
+  font-weight: 700;
+  color: var(--c-ink);
+}
+.field input,
+.field select,
+.field textarea {
+  min-height: var(--tap);
+  padding: var(--s-3);
+  background: var(--c-surface);
+  border: 2px solid transparent;
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow);
+}
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  border-color: var(--c-primary);
+}
+
+/* ---- Start — verbatim from ConfigForm.module.css. ---------------------- */
+.startBar {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  margin: 0 calc(var(--s-4) * -1) calc(var(--s-4) * -1);
+  padding: var(--s-4) var(--s-4) calc(var(--s-4) + env(safe-area-inset-bottom));
+  background: linear-gradient(to bottom, transparent, var(--c-bg) var(--s-4));
+}
+.start {
+  min-height: 56px;
+  width: 100%;
+  background: var(--c-primary);
+  color: var(--c-primary-ink);
+  font-size: var(--t-lg);
+  font-weight: 800;
+  border-radius: var(--r-full);
+  box-shadow: var(--shadow-lift);
+}
+.start:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ---- Error — verbatim from ConfigForm.module.css. ----------------------- */
+.error {
+  padding: var(--s-4);
+  background: var(--c-warn-bg);
+  color: var(--c-warn);
+  border-radius: var(--r-md);
+  font-weight: 600;
+}
+
+/* ---- voiceNote — verbatim from ConfigForm.module.css. ------------------- */
+.voiceNote {
+  padding: var(--s-3);
+  background: var(--c-warn-bg);
+  color: var(--c-warn);
+  border-radius: var(--r-md);
+  font-size: var(--t-sm);
+  font-weight: 600;
+}

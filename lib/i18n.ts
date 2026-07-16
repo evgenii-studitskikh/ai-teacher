@@ -473,7 +473,14 @@ const ru: UIStrings = {
 
   whoIsLearning: "Кто сегодня занимается?",
   addKid: "Добавить ребёнка",
-  ageShort: (age) => `${age} лет`,
+  // Russian numeral agreement: 1 год, 2–4 года, 5+ лет (11–14 always лет).
+  ageShort: (age) => {
+    const mod10 = age % 10;
+    const mod100 = age % 100;
+    if (mod10 === 1 && mod100 !== 11) return `${age} год`;
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return `${age} года`;
+    return `${age} лет`;
+  },
   manage: "Управление",
   save: "Сохранить",
   cancel: "Отмена",
@@ -501,7 +508,7 @@ const ru: UIStrings = {
   edit: "Редактировать",
   deleteAction: "Удалить",
   confirmDelete: "Нажмите ещё раз для подтверждения",
-  duplicateAndEdit: "Дублировать и изменить",
+  duplicateAndEdit: "Дублировать и редактировать",
   newTeacher: "Новый учитель",
   teacherNameLabel: "Имя",
   personalityFieldLabel: "Характер",
@@ -635,7 +642,7 @@ const es: UIStrings = {
 
   whoIsLearning: "¿Quién aprende hoy?",
   addKid: "Añadir un peque",
-  ageShort: (age) => `${age} años`,
+  ageShort: (age) => (age === 1 ? "1 año" : `${age} años`),
   manage: "Gestionar",
   save: "Guardar",
   cancel: "Cancelar",
@@ -797,7 +804,7 @@ const de: UIStrings = {
 
   whoIsLearning: "Wer lernt heute?",
   addKid: "Kind hinzufügen",
-  ageShort: (age) => `${age} Jahre`,
+  ageShort: (age) => (age === 1 ? "1 Jahr" : `${age} Jahre`),
   manage: "Verwalten",
   save: "Speichern",
   cancel: "Abbrechen",
@@ -958,7 +965,7 @@ const he: UIStrings = {
   wrongPasscode: "זה לא הקוד.",
   unlockNetworkError: "אין חיבור לשרת. בדקו את החיבור ונסו שוב.",
 
-  whoIsLearning: "מי לומד היום?",
+  whoIsLearning: "מי לומדים היום?",
   addKid: "הוספת ילד או ילדה",
   ageShort: (age) => `גיל ${age}`,
   manage: "ניהול",
@@ -1155,9 +1162,9 @@ const tl: UIStrings = {
   newTeacher: "Bagong guro",
   teacherNameLabel: "Pangalan",
   personalityFieldLabel: "Ugali",
-  personalityPlaceholder: "Mainit ang ugali at mausisa. Mahilig sa word jokes. Laging game sa gawa-gawang adventure.",
+  personalityPlaceholder: "Mainit ang ugali at mausisa. Mahilig sa puns. Laging game sa gawa-gawang adventure.",
   autoVoice: "Automatic (pinakabagay)",
-  generateVoice: "I-generate ang bagay na boses",
+  generateVoice: "I-generate ang katernong boses",
   generatingVoice: "Ginagawa ang boses…",
   voiceGenerated: "Nagawa na at napili ang boses.",
   voiceGenerateFailed: (detail) => `Hindi magawa ang boses: ${detail} Nakapili pa rin ang boses na pinakabagay.`,
@@ -1285,7 +1292,14 @@ const uk: UIStrings = {
 
   whoIsLearning: "Хто сьогодні займається?",
   addKid: "Додати дитину",
-  ageShort: (age) => `${age} років`,
+  // Ukrainian numeral agreement: 1 рік, 2–4 роки, 5+ років (11–14 always років).
+  ageShort: (age) => {
+    const mod10 = age % 10;
+    const mod100 = age % 100;
+    if (mod10 === 1 && mod100 !== 11) return `${age} рік`;
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return `${age} роки`;
+    return `${age} років`;
+  },
   manage: "Керування",
   save: "Зберегти",
   cancel: "Скасувати",

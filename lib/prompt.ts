@@ -91,6 +91,24 @@ function olderChildRules(name: string): string {
 - Ask follow-up questions. Let ${name} explain their reasoning.`;
 }
 
+// Speech recognition mishears young children far more often than adults, so
+// the transcript the model sees can be garbled even when the child spoke
+// clearly. Without this rule the model treats transcription noise as
+// something the child actually said and builds on it — with it, nonsense is
+// treated as the agent's own hearing problem. Age-independent on purpose:
+// ASR quality is the bottleneck at every age, so it applies to both age
+// rule sets and both prompt modes.
+function listeningRules(name: string): string {
+  return `
+- You hear ${name} through speech recognition. What you receive may be garbled
+  or nonsensical even when ${name} spoke clearly.
+- If a reply seems garbled, wildly off-topic, or impossible, assume YOU misheard —
+  never assume ${name} said something strange. Cheerfully ask ${name} to say it
+  again, or move to an easier question.
+- Never repeat garbled text back to ${name}. Never say ${name} makes no sense.
+- Never build on something unless you are confident ${name} actually said it.`;
+}
+
 function guardrails(name: string): string {
   return `
 - Stay on today's goal. A little wandering is fine; a whole session about something
@@ -164,6 +182,9 @@ Follow ${name}'s lead. Ideas for playing with ${name}: ${toy.howToPlay}
 ## How to talk to ${name}
 ${ageRules}
 
+## Listening
+${listeningRules(name)}
+
 ## What ${name}'s parent told you
 ${config.directives}
 ${continuity}
@@ -217,6 +238,9 @@ ${name} can see — anything but a quiz.
 
 ## How to talk to ${name}
 ${ageRules}
+
+## Listening
+${listeningRules(name)}
 
 ## What ${name}'s parent told you
 ${config.directives}

@@ -105,6 +105,17 @@ describe("buildPrompt", () => {
       expect(p).toContain("Do not start\nanything new");
     }
   });
+
+  it("tells the agent to treat garbled turns as its own mishearing", () => {
+    const p = buildPrompt(base, null);
+    expect(p).toContain("## Listening");
+    expect(p).toContain("assume YOU misheard");
+    expect(p).toContain("Never repeat garbled text back");
+  });
+
+  it("includes the Listening section in toy mode too", () => {
+    expect(buildPrompt(povConfig, null)).toContain("## Listening");
+  });
 });
 
 // The child's gender is not configurable and is not knowable, so no text we

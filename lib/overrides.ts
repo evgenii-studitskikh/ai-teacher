@@ -103,10 +103,3 @@ export function firstMessageMatches(expected: string, received: string, mustMent
   if (r.includes(e) || e.includes(r)) return true;
   return diceCoefficient(e.split(" "), r.split(" ")) >= SIMILARITY_THRESHOLD;
 }
-
-export const OVERRIDES_DISABLED_MESSAGE =
-  "Stopped the session immediately: this agent is ignoring the settings this app sends, " +
-  "so your child would have been talking to an unguarded default agent — no safety rules, " +
-  "no lesson, no chosen voice. Fix: open the agent at elevenlabs.io/app/agents, go to its " +
-  "Security settings, and enable overrides for all four of System prompt, First message, " +
-  "Language and Voice (see SETUP.md). Then start the session again.";

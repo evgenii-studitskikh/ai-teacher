@@ -4,9 +4,10 @@ import { ConversationProvider, useConversation } from "@elevenlabs/react";
 import type { Language } from "@elevenlabs/client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { loadLatestSummary } from "../../lib/browser-storage";
-import { OVERRIDES_DISABLED_MESSAGE, firstMessageMatches, normalizeSpokenText } from "../../lib/overrides";
+import { firstMessageMatches, normalizeSpokenText } from "../../lib/overrides";
 import { buildFirstMessage, buildPrompt, buildWindDownMessage } from "../../lib/prompt";
 import type { SavedSession, SessionConfig, SessionSummary, TranscriptTurn } from "../../lib/types";
+import { useLanguage } from "./LanguageProvider";
 import styles from "./SessionView.module.css";
 
 type Props = {
@@ -26,14 +27,17 @@ export default function SessionView({ config, onDone }: Props) {
 }
 
 function SessionInner({ config, onDone }: Props) {
+  const { t } = useLanguage();
   const [lastSummary, setLastSummary] = useState<SessionSummary | null>(null);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [transcript, setTranscript] = useState<TranscriptTurn[]>([]);
   const [secondsLeft, setSecondsLeft] = useState(config.minutes * 60);
-  // Set when the override canary trips (see onMessage). Non-null means the
-  // session was aborted because the agent was not running our configuration.
-  const [overridesDisabled, setOverridesDisabled] = useState<string | null>(null);
+  // True when the override canary tripped (see onMessage): the session was
+  // aborted because the agent was not running our configuration. The message
+  // shown for it comes from the dictionary at render time, so it follows the
+  // header's language even if the parent switches after the alarm fired.
+  const [overridesDisabled, setOverridesDisabled] = useState(false);
 
   const startedAt = useRef<number>(0);
   const windDownSent = useRef(false);
@@ -143,7 +147,7 @@ function SessionInner({ config, onDone }: Props) {
         ]);
         if (!ours) {
           finished.current = true; // makes finish() (via onDisconnect) a no-op
-          setOverridesDisabled(OVERRIDES_DISABLED_MESSAGE);
+          setOverridesDisabled(true);
           // Hang up through a ref, not through the `conversation` object this
           // very call is initializing: referring to it from inside its own
           // callback makes the React compiler treat this closure as
@@ -207,16 +211,16 @@ function SessionInner({ config, onDone }: Props) {
 
   const start = useCallback(async () => {
     setError(null);
-    setOverridesDisabled(null);
+    setOverridesDisabled(false);
     try {
       await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch {
-      setError("I need microphone permission to talk. Please allow it in your browser and try again.");
+      setError(t.micPermission);
       return;
     }
     const res = await fetch("/api/signed-url");
     if (!res.ok) {
-      setError("Could not start the session. Check your keys in .env.local.");
+      setError(t.couldNotStart);
       return;
     }
     const { signedUrl } = await res.json();
@@ -237,7 +241,7 @@ function SessionInner({ config, onDone }: Props) {
     // fill in. Sending them anyway was dead weight that read as if the agent
     // depended on them.
     conversation.startSession({ signedUrl });
-  }, [conversation, config]);
+  }, [conversation, config, t]);
 
   // The clock. The model has no sense of time — at 80% elapsed (20%
   // remaining) we send a contextual update telling it to wrap up. This is
@@ -328,7 +332,7 @@ function SessionInner({ config, onDone }: Props) {
     scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: "smooth" });
   }, [transcript.length]);
 
-  if (!ready) return <p className={styles.status}>Getting ready…</p>;
+  if (!ready) return <p className={styles.status}>{t.gettingReady}</p>;
 
   const mins = Math.floor(secondsLeft / 60);
   const secs = String(secondsLeft % 60).padStart(2, "0");
@@ -344,8 +348,8 @@ function SessionInner({ config, onDone }: Props) {
 
       {overridesDisabled && (
         <section role="alert" className={styles.alarm}>
-          <h2>Session stopped — overrides are not enabled</h2>
-          <p>{overridesDisabled}</p>
+          <h2>{t.overridesAlarmTitle}</h2>
+          <p>{t.overridesDisabledBody}</p>
         </section>
       )}
 
@@ -370,17 +374,17 @@ function SessionInner({ config, onDone }: Props) {
       </div>
 
       <p className={styles.state} role="status">
-        {conversation.status === "connecting" && "Connecting…"}
+        {conversation.status === "connecting" && t.connecting}
         {orbState === "idle" &&
           conversation.status === "disconnected" &&
           !overridesDisabled &&
-          "Ready when you are"}
-        {orbState === "listening" && `${config.agentName} is listening`}
-        {orbState === "speaking" && `${config.agentName} is talking`}
+          t.readyWhenYouAre}
+        {orbState === "listening" && t.agentListening(config.agentName)}
+        {orbState === "speaking" && t.agentTalking(config.agentName)}
       </p>
 
       <div className={styles.transcript} ref={scroller} onScroll={onTranscriptScroll}>
-        {transcript.length === 0 && <p className={styles.empty}>Nothing said yet.</p>}
+        {transcript.length === 0 && <p className={styles.empty}>{t.nothingSaidYet}</p>}
         {transcript.map((turn, i) => (
           <div key={i} className={`${styles.bubble} ${turn.role === "agent" ? styles.fromAgent : styles.fromChild}`}>
             <span className={styles.who}>{turn.role === "agent" ? config.agentName : config.childName}</span>
@@ -392,7 +396,7 @@ function SessionInner({ config, onDone }: Props) {
       {conversation.status === "connected" ? (
         <div className={styles.endBar}>
           <button className={styles.end} onClick={() => conversation.endSession()}>
-            End session
+            {t.endSession}
           </button>
         </div>
       ) : overridesDisabled ? (
@@ -414,11 +418,11 @@ function SessionInner({ config, onDone }: Props) {
         // for a reload), but it no longer presents itself as the answer. The
         // canary logic itself is untouched — this is presentation only.
         <button className={styles.startBlocked} onClick={start}>
-          Enable overrides first, then start again
+          {t.enableOverridesFirst}
         </button>
       ) : (
         <button className={styles.start} onClick={start} disabled={conversation.status === "connecting"}>
-          {conversation.status === "connecting" ? "Connecting…" : "Start"}
+          {conversation.status === "connecting" ? t.connecting : t.startBtn}
         </button>
       )}
     </section>

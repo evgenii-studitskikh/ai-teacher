@@ -1,5 +1,5 @@
 // lib/browser-storage.ts
-import type { Kid, Language, LastStart, SavedSession, SessionConfig, SessionSummary, Teacher } from "./types";
+import type { Kid, Language, LastStart, SavedSession, SessionConfig, SessionSummary, Teacher, ToyInfo } from "./types";
 import { isLanguage } from "./types";
 
 // Everything the parent's device remembers. There is no server-side store any
@@ -63,8 +63,12 @@ function defaultStore(): Storage {
 // U+0439) and the same name typed on another device as a base letter plus a
 // combining mark (U+0438 U+0306) are visually identical but are different
 // strings — the child would silently fragment into two profiles.
+function normalizeName(name: string): string {
+  return name.trim().normalize("NFC").toLowerCase();
+}
+
 function normalizeChildName(childName: string): string {
-  return childName.trim().normalize("NFC").toLowerCase();
+  return normalizeName(childName);
 }
 
 function profileKey(childName: string): string {
@@ -256,4 +260,81 @@ export function loadLastStart(kidId: string, store: Storage = defaultStore()): L
   } catch {
     return null;
   }
+}
+
+const MIGRATION_KEY = "ai-teacher:profiles-migrated";
+
+// A re-scanned toy should update its existing teacher, not clutter the picker
+// with near-duplicates. Toys are matched by normalized name — the same rule
+// child profiles used, and the model names the same toy the same way.
+export function upsertToyTeacher(
+  toy: ToyInfo,
+  voiceId: string | null,
+  store: Storage = defaultStore(),
+): Teacher {
+  const existing = listTeachers(store).find(
+    (t) => t.kind === "toy" && normalizeName(t.name) === normalizeName(toy.name),
+  );
+  const teacher: Teacher = {
+    id: existing?.id ?? crypto.randomUUID(),
+    kind: "toy",
+    name: toy.name,
+    // A fresh suggestion wins; no suggestion keeps whatever match (or designed
+    // voice) the toy already had.
+    voiceId: voiceId ?? existing?.voiceId ?? null,
+    personality: toy.personality,
+    toy,
+    createdAt: existing?.createdAt ?? new Date().toISOString(),
+  };
+  saveTeacher(teacher, store);
+  return teacher;
+}
+
+// One-time conversion of the legacy per-child profiles (a whole SessionConfig
+// keyed by child name) into first-class kids + teachers + last-start prefills.
+// The marker is written LAST: any throw on the way leaves the old profiles
+// intact for the next attempt, and a second run after success is a no-op.
+export function migrateProfilesToKids(store: Storage = defaultStore()): void {
+  if (store.getItem(MIGRATION_KEY) !== null) return;
+
+  const profiles = listProfiles(store);
+  const teacherByPair = new Map<string, string>(); // "agentName|voiceId" -> teacherId
+  const migratedKeys: string[] = [];
+
+  for (const p of profiles) {
+    const pairKey = `${p.agentName}|${p.voiceId}`;
+    let teacherId = teacherByPair.get(pairKey);
+    if (!teacherId) {
+      teacherId = crypto.randomUUID();
+      saveTeacher(
+        {
+          id: teacherId,
+          kind: "custom",
+          name: p.agentName,
+          voiceId: p.voiceId || null,
+          personality: "",
+          createdAt: new Date().toISOString(),
+        },
+        store,
+      );
+      teacherByPair.set(pairKey, teacherId);
+    }
+
+    const kid: Kid = {
+      id: crypto.randomUUID(),
+      name: p.childName,
+      age: p.childAge,
+      createdAt: new Date().toISOString(),
+    };
+    saveKid(kid, store);
+    saveLastStart(
+      kid.id,
+      { teacherId, goal: p.goal, directives: p.directives, minutes: p.minutes },
+      store,
+    );
+    migratedKeys.push(profileKey(p.childName)); // the existing private helper — same key the profile was saved under
+  }
+
+  for (const key of migratedKeys) store.removeItem(key);
+  store.setItem(MIGRATION_KEY, new Date().toISOString());
 }

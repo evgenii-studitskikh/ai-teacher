@@ -11,14 +11,16 @@ import {
   loadLatestSummary,
   loadLanguage,
   loadProfile,
+  migrateProfilesToKids,
   saveKid,
   saveLanguage,
   saveLastStart,
   saveProfile,
   saveSession,
   saveTeacher,
+  upsertToyTeacher,
 } from "./browser-storage";
-import type { Kid, LastStart, SavedSession, SessionConfig, SessionSummary, Teacher } from "./types";
+import type { Kid, LastStart, SavedSession, SessionConfig, SessionSummary, Teacher, ToyInfo } from "./types";
 
 // A `Storage` that lives in memory. The real one is the browser's, which
 // vitest's node environment does not have — and mocking it this way is also
@@ -418,5 +420,93 @@ describe("last-start", () => {
     store.setItem("ai-teacher:last-start:k1", "{not json");
     expect(loadLastStart("k1", store)).toBeNull();
     expect(loadLastStart("k1", throwingStore())).toBeNull();
+  });
+});
+
+const toy: ToyInfo = {
+  name: "Buzz Lightyear",
+  character: "a brave space-ranger action figure",
+  personality: "confident, heroic, a little goofy",
+  howToPlay: "fly to imaginary planets",
+};
+
+describe("upsertToyTeacher", () => {
+  it("creates a toy teacher with the toy attached", () => {
+    const t = upsertToyTeacher(toy, "v9", store);
+    expect(t.kind).toBe("toy");
+    expect(t.name).toBe("Buzz Lightyear");
+    expect(t.voiceId).toBe("v9");
+    expect(t.toy).toEqual(toy);
+    expect(listTeachers(store)).toEqual([t]);
+  });
+
+  it("re-scanning the same toy updates instead of duplicating", () => {
+    const first = upsertToyTeacher(toy, "v9", store);
+    const second = upsertToyTeacher({ ...toy, personality: "brave and kind" }, null, store);
+    expect(second.id).toBe(first.id);
+    expect(listTeachers(store)).toHaveLength(1);
+    expect(listTeachers(store)[0].personality).toBe("brave and kind");
+    // A re-scan with no voice suggestion keeps the previously matched voice.
+    expect(listTeachers(store)[0].voiceId).toBe("v9");
+  });
+
+  it("does not match a custom teacher with the same name", () => {
+    saveTeacher({ ...teacher, name: "Buzz Lightyear" }, store);
+    upsertToyTeacher(toy, null, store);
+    expect(listTeachers(store)).toHaveLength(2);
+  });
+});
+
+describe("migrateProfilesToKids", () => {
+  it("converts each profile into a kid, a custom teacher and a last-start", () => {
+    saveProfile(config, store); // Mia / Robo / v1 (from the fixtures above)
+    saveProfile({ ...config, childName: "Аня", childAge: 7, goal: "Colours" }, store);
+    migrateProfilesToKids(store);
+
+    const kids = listKids(store);
+    expect(kids.map((k) => k.name).sort()).toEqual(["Mia", "Аня"]);
+    expect(kids.find((k) => k.name === "Аня")?.age).toBe(7);
+
+    // Same (agentName, voiceId) pair → ONE custom teacher shared by both kids.
+    const teachers = listTeachers(store);
+    expect(teachers).toHaveLength(1);
+    expect(teachers[0]).toMatchObject({ kind: "custom", name: "Robo", voiceId: "v1", personality: "" });
+
+    const mia = kids.find((k) => k.name === "Mia") as Kid;
+    expect(loadLastStart(mia.id, store)).toEqual({
+      teacherId: teachers[0].id,
+      goal: "Count to 10",
+      directives: "",
+      minutes: 10,
+    });
+
+    // Old profile keys are gone.
+    expect(listProfiles(store)).toEqual([]);
+  });
+
+  it("creates one teacher per distinct (agentName, voiceId) pair", () => {
+    saveProfile(config, store);
+    saveProfile({ ...config, childName: "Аня", agentName: "Zoe", voiceId: "v2" }, store);
+    migrateProfilesToKids(store);
+    expect(listTeachers(store).map((t) => t.name).sort()).toEqual(["Robo", "Zoe"]);
+  });
+
+  it("is idempotent — a second run changes nothing", () => {
+    saveProfile(config, store);
+    migrateProfilesToKids(store);
+    const before = { kids: listKids(store), teachers: listTeachers(store) };
+    migrateProfilesToKids(store);
+    expect(listKids(store)).toEqual(before.kids);
+    expect(listTeachers(store)).toEqual(before.teachers);
+  });
+
+  it("does nothing (and does not mark migrated) when storage is blocked", () => {
+    expect(() => migrateProfilesToKids(throwingStore())).toThrow();
+  });
+
+  it("maps an empty voiceId to null", () => {
+    saveProfile({ ...config, voiceId: "" }, store);
+    migrateProfilesToKids(store);
+    expect(listTeachers(store)[0].voiceId).toBeNull();
   });
 });

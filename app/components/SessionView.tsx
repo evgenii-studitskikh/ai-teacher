@@ -219,7 +219,14 @@ function SessionInner({ config, onDone }: Props) {
       setError(t.micPermission);
       return;
     }
-    const res = await fetch("/api/signed-url");
+    // POST, not GET: the route re-tunes the agent's ASR for this session
+    // (keyword biasing needs the child/agent/toy names) before minting the
+    // signed URL. `config` is already in scope — it drives the overrides below.
+    const res = await fetch("/api/signed-url", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(config),
+    });
     if (!res.ok) {
       setError(t.couldNotStart);
       return;

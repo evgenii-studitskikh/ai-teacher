@@ -1,0 +1,58 @@
+/* app/components/VoicePicker.module.css */
+
+.note {
+  font-size: var(--t-xs);
+  color: var(--c-ink-soft);
+}
+
+/* ---- Voice picker ------------------------------------------------------
+   Each voice is a full-width row: a native radio (themed, not reinvented —
+   accent-color keeps every bit of built-in keyboard/AT behaviour) plus a
+   separate play button as a sibling, never nested inside the <label>, so a
+   tap on the button can't also fire the label's own activation. */
+.voiceList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.voiceRow {
+  display: flex;
+  align-items: stretch;
+  background: var(--c-surface);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow);
+}
+.voiceOption {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: var(--tap);
+  padding: var(--s-3);
+  font-weight: 600;
+  cursor: pointer;
+}
+.voiceOption:has(input:checked) {
+  background: color-mix(in srgb, var(--c-primary) 12%, transparent);
+  border-radius: var(--r-md) 0 0 var(--r-md);
+}
+.voiceOption input[type="radio"] {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+  accent-color: var(--c-primary);
+}
+.playBtn {
+  width: var(--tap);
+  min-height: var(--tap);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--t-md);
+  color: var(--c-primary);
+  border-radius: 0 var(--r-md) var(--r-md) 0;
+}
+.playBtn:hover {
+  background: color-mix(in srgb, var(--c-primary) 8%, transparent);
+}

@@ -21,13 +21,17 @@ export default function KidPicker({ kids, onPick, onAdd, onManage }: Props) {
   const [age, setAge] = useState(5);
   const formId = useId();
 
+  function closeForm() {
+    setAdding(false);
+    setName("");
+    setAge(5);
+  }
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
     onAdd(name.trim(), age);
-    setAdding(false);
-    setName("");
-    setAge(5);
+    closeForm();
   }
 
   return (
@@ -65,7 +69,7 @@ export default function KidPicker({ kids, onPick, onAdd, onManage }: Props) {
               />
               <div className={styles.addActions}>
                 <button type="submit" className={styles.save}>{t.save}</button>
-                <button type="button" className={styles.cancel} onClick={() => setAdding(false)}>
+                <button type="button" className={styles.cancel} onClick={closeForm}>
                   {t.cancel}
                 </button>
               </div>

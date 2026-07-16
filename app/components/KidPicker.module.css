@@ -53,7 +53,7 @@
 
 .cardName {
   font-weight: 600;
-  font-size: 1.05rem;
+  font-size: var(--t-md);
 }
 
 .cardSub {

@@ -198,12 +198,12 @@
 .fromAgent {
   align-self: flex-start;
   background: color-mix(in srgb, var(--c-agent) 12%, white);
-  border-bottom-left-radius: var(--r-sm);
+  border-end-start-radius: var(--r-sm);
 }
 .fromChild {
   align-self: flex-end;
   background: color-mix(in srgb, var(--c-child) 16%, white);
-  border-bottom-right-radius: var(--r-sm);
+  border-end-end-radius: var(--r-sm);
 }
 .who {
   display: block;

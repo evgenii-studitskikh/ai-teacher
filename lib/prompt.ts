@@ -42,15 +42,28 @@ const LANGUAGES: Record<Language, { name: string; greeting: (child: string, agen
     name: "German",
     greeting: (child, agent) => `Hallo ${child}! Ich bin ${agent}. Wollen wir spielen?`,
   },
+  he: {
+    name: "Hebrew",
+    // "שנשחק?" ("shall we play?") deliberately sidesteps Hebrew's gendered
+    // imperative בוא/בואי and adjective מוכן/מוכנה — same rule as ru/es.
+    greeting: (child, agent) => `היי ${child}! אני ${agent}. שנשחק?`,
+  },
+  tl: {
+    name: "Tagalog",
+    // Tagalog has no grammatical gender; "tayo" (inclusive we) is warm and neutral.
+    greeting: (child, agent) => `Hi ${child}! Ako si ${agent}. Maglaro tayo?`,
+  },
+  uk: {
+    name: "Ukrainian",
+    // Same "shall we play?" shape as the Russian greeting — "Пограємо?"
+    // avoids the gendered готовий/готова.
+    greeting: (child, agent) => `Привіт, ${child}! Я ${agent}. Пограємо?`,
+  },
 };
 
 export function languageName(language: Language): string {
   return LANGUAGES[language].name;
 }
-
-export const LANGUAGE_OPTIONS: { value: Language; label: string }[] = (
-  Object.keys(LANGUAGES) as Language[]
-).map((value) => ({ value, label: LANGUAGES[value].name }));
 
 // Nothing in this file may assume the child's gender. The app deliberately has
 // no gender field (asking for one buys nothing and is one more thing to get

@@ -2,9 +2,10 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import type { SessionConfig, ToyInfo, ToyMode } from "../../lib/types";
-import { LANGUAGE_OPTIONS } from "../../lib/prompt";
 import { loadProfile, listProfiles, saveProfile } from "../../lib/browser-storage";
 import { resolveVoiceSelection } from "../../lib/voice-selection";
+import { useLanguage } from "./LanguageProvider";
+import type { UIStrings } from "../../lib/i18n";
 import styles from "./ConfigForm.module.css";
 
 type Voice = { voiceId: string; name: string; previewUrl: string };
@@ -20,12 +21,6 @@ const DEFAULTS: SessionConfig = {
   minutes: 10,
 };
 
-// Deliberately NOT a second list. The languages the parent can pick and the
-// languages the agent has a greeting for must be the same set, or we greet a
-// child in a language they don't speak — which is exactly what happened when
-// these were two unrelated lists.
-const LANGUAGES = LANGUAGE_OPTIONS;
-
 export default function ConfigForm({
   onStart,
   toy,
@@ -33,13 +28,16 @@ export default function ConfigForm({
   onStart: (config: SessionConfig) => void;
   toy?: ToyInfo;
 }) {
+  const { language, t } = useLanguage();
   const [config, setConfig] = useState<SessionConfig>(() =>
     toy
       ? { ...DEFAULTS, agentName: toy.name, goal: "", toy, toyMode: "pov" as ToyMode }
       : DEFAULTS,
   );
   const [voices, setVoices] = useState<Voice[]>([]);
-  const [voicesError, setVoicesError] = useState<string | null>(null);
+  const [voicesError, setVoicesError] = useState<
+    { kind: "noVoices" } | { kind: "failed"; detail: string } | null
+  >(null);
   const [profileNote, setProfileNote] = useState<string | null>(null);
   const [profiles, setProfiles] = useState<SessionConfig[]>([]);
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
@@ -67,7 +65,7 @@ export default function ConfigForm({
       })
       .then((list) => {
         if (list.length === 0) {
-          setVoicesError("Your ElevenLabs account has no voices in it. Add one at elevenlabs.io, then reload.");
+          setVoicesError({ kind: "noVoices" });
           return;
         }
         // Deliberately does NOT touch config.voiceId. Choosing a voice is the
@@ -77,11 +75,7 @@ export default function ConfigForm({
       })
       .catch((e: unknown) => {
         setVoices([]);
-        setVoicesError(
-          `Could not load the voice list: ${e instanceof Error ? e.message : "unknown error"} ` +
-            "Check that ELEVENLABS_API_KEY in .env.local is set and valid, and that `npm run dev` is " +
-            "still running, then reload this page. Until the voices load, a session cannot be started.",
-        );
+        setVoicesError({ kind: "failed", detail: e instanceof Error ? e.message : "unknown error" });
       });
   }, []);
 
@@ -128,8 +122,10 @@ export default function ConfigForm({
     const applied: (keyof SessionConfig)[] = [];
     for (const key of Object.keys(DEFAULTS) as (keyof SessionConfig)[]) {
       // childName is what we looked the profile up *by* — never overwrite the
-      // spelling the parent just typed with the stored one.
-      if (key === "childName" || touched.current.has(key)) continue;
+      // spelling the parent just typed with the stored one. language is a
+      // GLOBAL setting now (the header picker) — a stored per-child language
+      // is a leftover from the old scheme and is deliberately ignored.
+      if (key === "childName" || key === "language" || touched.current.has(key)) continue;
       if (saved[key] === undefined || saved[key] === config[key]) continue;
       Object.assign(next, { [key]: saved[key] });
       applied.push(key);
@@ -137,8 +133,11 @@ export default function ConfigForm({
     setConfig(next);
     setProfileNote(
       applied.length > 0
-        ? `Filled in from ${config.childName}'s last session: ${applied.join(", ")}. Anything you already changed was left alone.`
-        : `Found a saved profile for ${config.childName}; everything in it matches what's on the form already.`,
+        ? t.profileFilled(
+            config.childName,
+            applied.map((k) => t.fieldNames[k as keyof UIStrings["fieldNames"]]).join(", "),
+          )
+        : t.profileMatches(config.childName),
     );
   }
 
@@ -191,7 +190,11 @@ export default function ConfigForm({
     // showed the parent and the one the child will actually hear, so it is the
     // one that gets used AND the one that gets saved back to the profile —
     // otherwise a substituted voice would be silently un-substituted next time.
-    const chosen = { ...config, voiceId };
+    // The global header setting is the single source of truth for language —
+    // whatever a restored profile or DEFAULTS put in `config.language` is
+    // overwritten here, so the saved session remains a complete record of
+    // what was actually taught.
+    const chosen = { ...config, voiceId, language };
     // Toy sessions are ephemeral and must not overwrite the child's saved
     // lesson profile (which would also poison a later lesson with toy fields).
     if (!toy) {
@@ -218,7 +221,7 @@ export default function ConfigForm({
   // to the effect above, which runs again the instant the real list lands and
   // which announces any substitution it has to make.
   function applyCard(p: SessionConfig) {
-    setConfig({ ...p });
+    setConfig({ ...p, language });
     setProfileNote(null);
   }
 
@@ -243,8 +246,8 @@ export default function ConfigForm({
   return (
     <>
       {!toy && profiles.length > 0 && (
-        <section className={styles.recent} aria-label="Saved children">
-          <h2 className={styles.sectionTitle}>Pick up where you left off</h2>
+        <section className={styles.recent} aria-label={t.savedChildren}>
+          <h2 className={styles.sectionTitle}>{t.pickUp}</h2>
           <ul className={styles.cards}>
             {profiles.map((p) => (
               <li key={p.childName}>
@@ -261,15 +264,15 @@ export default function ConfigForm({
       <form onSubmit={submit} className={styles.form}>
         {voicesError && (
           <p role="alert" className={styles.error}>
-            {voicesError}
+            {voicesError.kind === "noVoices" ? t.noVoices : t.voicesFailed(voicesError.detail)}
           </p>
         )}
 
         <fieldset className={styles.group}>
-          <legend className={styles.legend}>Who</legend>
+          <legend className={styles.legend}>{t.who}</legend>
 
           <div className={styles.field}>
-            <label htmlFor={`${formId}-childName`}>Child&apos;s name</label>
+            <label htmlFor={`${formId}-childName`}>{t.childNameLabel}</label>
             <input
               id={`${formId}-childName`}
               value={config.childName}
@@ -285,7 +288,7 @@ export default function ConfigForm({
           )}
 
           <div className={styles.field}>
-            <label htmlFor={`${formId}-childAge`}>Child&apos;s age</label>
+            <label htmlFor={`${formId}-childAge`}>{t.childAgeLabel}</label>
             <input
               id={`${formId}-childAge`}
               type="number"
@@ -296,36 +299,15 @@ export default function ConfigForm({
               required
             />
           </div>
-
-          <div className={styles.field}>
-            <label htmlFor={`${formId}-language`}>Language</label>
-            <select
-              id={`${formId}-language`}
-              value={config.language}
-              // A <select>'s value is a bare string, but `language` is a closed
-              // union — so narrow it by looking it up in the same list the
-              // options were rendered from, rather than asserting the type away.
-              onChange={(e) => {
-                const picked = LANGUAGES.find((l) => l.value === e.target.value);
-                if (picked) set("language", picked.value);
-              }}
-            >
-              {LANGUAGES.map((l) => (
-                <option key={l.value} value={l.value}>
-                  {l.label}
-                </option>
-              ))}
-            </select>
-          </div>
         </fieldset>
 
         <fieldset className={styles.group}>
-          <legend className={styles.legend}>What</legend>
+          <legend className={styles.legend}>{t.what}</legend>
 
           {toy && (
             <div className={styles.field}>
-              <span className={styles.modeLabel}>How should {config.agentName || toy.name} play?</span>
-              <div className={styles.modeGroup} role="radiogroup" aria-label="Interaction mode">
+              <span className={styles.modeLabel}>{t.howShouldToyPlay(config.agentName || toy.name)}</span>
+              <div className={styles.modeGroup} role="radiogroup" aria-label={t.interactionMode}>
                 <label className={styles.modeOption}>
                   <input
                     type="radio"
@@ -334,7 +316,7 @@ export default function ConfigForm({
                     onChange={() => setToyMode("pov")}
                   />
                   <span>
-                    <strong>Be the toy</strong> — the AI talks as {toy.name}.
+                    <strong>{t.beTheToyTitle}</strong> — {t.beTheToyDesc(toy.name)}
                   </span>
                 </label>
                 <label className={styles.modeOption}>
@@ -345,7 +327,7 @@ export default function ConfigForm({
                     onChange={() => setToyMode("third-person")}
                   />
                   <span>
-                    <strong>Help me play</strong> — a guide helps the child play with {toy.name}.
+                    <strong>{t.helpMePlayTitle}</strong> — {t.helpMePlayDesc(toy.name)}
                   </span>
                 </label>
               </div>
@@ -353,38 +335,36 @@ export default function ConfigForm({
           )}
 
           <div className={styles.field}>
-            <label htmlFor={`${formId}-goal`}>{toy ? "Purpose of play" : "Goal"}</label>
+            <label htmlFor={`${formId}-goal`}>{toy ? t.purposeLabel : t.goalLabel}</label>
             <input
               id={`${formId}-goal`}
               value={config.goal}
               onChange={(e) => set("goal", e.target.value)}
-              placeholder={toy ? "Practice colours; wind down before bed" : "Count to 10"}
+              placeholder={toy ? t.purposePlaceholder : t.goalPlaceholder}
               required
             />
           </div>
 
           <div className={styles.field}>
-            <label htmlFor={`${formId}-directives`}>Extra instructions</label>
+            <label htmlFor={`${formId}-directives`}>{t.extraLabel}</label>
             <textarea
               id={`${formId}-directives`}
               value={config.directives}
               onChange={(e) => set("directives", e.target.value)}
-              placeholder="Shy — praise them a lot. Loves dinosaurs."
+              placeholder={t.extraPlaceholder}
               rows={3}
             />
           </div>
         </fieldset>
 
         <fieldset className={styles.group}>
-          <legend className={styles.legend}>How</legend>
+          <legend className={styles.legend}>{t.how}</legend>
 
           {toy && config.toyMode === "pov" ? (
-            <p className={styles.note}>
-              {toy.name} will introduce itself by name when the session starts.
-            </p>
+            <p className={styles.note}>{t.povIntro(toy.name)}</p>
           ) : (
             <div className={styles.field}>
-              <label htmlFor={`${formId}-agentName`}>{toy ? "Helper's name" : "Agent name"}</label>
+              <label htmlFor={`${formId}-agentName`}>{toy ? t.helperNameLabel : t.agentNameLabel}</label>
               <input
                 id={`${formId}-agentName`}
                 value={config.agentName}
@@ -395,8 +375,8 @@ export default function ConfigForm({
           )}
 
           <fieldset className={styles.subgroup}>
-            <legend className={styles.sublegend}>Voice</legend>
-            {voices.length === 0 && !voicesError && <p className={styles.note}>Loading voices…</p>}
+            <legend className={styles.sublegend}>{t.voiceLegend}</legend>
+            {voices.length === 0 && !voicesError && <p className={styles.note}>{t.loadingVoices}</p>}
             {/* A swapped voice is the one thing here the parent must not miss:
                 their child is about to be taught by a voice they did not
                 choose. This is the ONLY circumstance in which the app changes
@@ -406,9 +386,7 @@ export default function ConfigForm({
                 themselves. role="status" announces it without stealing focus. */}
             {voiceChoice.kind === "substitute" && (
               <p role="status" className={styles.voiceNote}>
-                The voice saved for this child is no longer in your ElevenLabs account, so{" "}
-                {voiceChoice.name} is selected instead. Pick a different one below if you&apos;d
-                rather — preview them with ▶.
+                {t.voiceSubstituted(voiceChoice.name)}
               </p>
             )}
             <div className={styles.voiceList}>
@@ -429,7 +407,7 @@ export default function ConfigForm({
                     type="button"
                     className={styles.playBtn}
                     aria-label={
-                      playingVoiceId === v.voiceId ? `Stop preview of ${v.name}` : `Play preview of ${v.name}`
+                      playingVoiceId === v.voiceId ? t.stopPreview(v.name) : t.playPreview(v.name)
                     }
                     onClick={() => togglePreview(v)}
                   >
@@ -442,7 +420,7 @@ export default function ConfigForm({
           </fieldset>
 
           <div className={styles.field}>
-            <label htmlFor={`${formId}-minutes`}>Session length (minutes)</label>
+            <label htmlFor={`${formId}-minutes`}>{t.sessionLength}</label>
             <input
               id={`${formId}-minutes`}
               type="number"
@@ -470,7 +448,7 @@ export default function ConfigForm({
             voice is selected", which is the only thing it should ever mean. */}
         <div className={styles.startBar}>
           <button type="submit" className={styles.start} disabled={!voiceId || voices.length === 0}>
-            Start session
+            {t.startSession}
           </button>
         </div>
       </form>

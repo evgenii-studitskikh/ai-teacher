@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { downscaleImage } from "../../lib/image";
 import type { ToyInfo } from "../../lib/types";
+import { useLanguage } from "./LanguageProvider";
 import styles from "./ToyScan.module.css";
 
 type Props = { onIdentified: (toy: ToyInfo) => void; onBack: () => void };
@@ -11,6 +12,7 @@ type Props = { onIdentified: (toy: ToyInfo) => void; onBack: () => void };
 // on phones/tablets and a file picker on desktop — no camera libraries. The
 // photo is downscaled in the browser, then sent to /api/identify-toy.
 export default function ToyScan({ onIdentified, onBack }: Props) {
+  const { t } = useLanguage();
   const [status, setStatus] = useState<"idle" | "working">("idle");
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -34,23 +36,23 @@ export default function ToyScan({ onIdentified, onBack }: Props) {
         .json()
         .catch(() => ({}) as { toy?: ToyInfo | null; error?: string });
       if (!res.ok) {
-        throw new Error(payload.error ?? `The photo could not be processed (HTTP ${res.status}).`);
+        throw new Error(payload.error ?? t.photoHttpError(res.status));
       }
       if (!payload.toy) {
-        setError("I couldn't spot a toy in that photo. Try again with the toy filling the frame.");
+        setError(t.noToySpotted);
         setStatus("idle");
         return;
       }
       onIdentified(payload.toy);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong reading the photo.");
+      setError(err instanceof Error ? err.message : t.photoReadError);
       setStatus("idle");
     }
   }
 
   return (
-    <section className={styles.scan} aria-label="Scan a toy">
-      <p className={styles.lead}>Take a clear photo of the toy, filling the frame.</p>
+    <section className={styles.scan} aria-label={t.scanToy}>
+      <p className={styles.lead}>{t.scanLead}</p>
 
       {error && (
         <p role="alert" className={styles.error}>
@@ -73,11 +75,11 @@ export default function ToyScan({ onIdentified, onBack }: Props) {
         onClick={() => inputRef.current?.click()}
         disabled={status === "working"}
       >
-        {status === "working" ? "Looking at the toy…" : "📷 Take a photo of the toy"}
+        {status === "working" ? t.lookingAtToy : t.takePhoto}
       </button>
 
       <button type="button" className={styles.back} onClick={onBack} disabled={status === "working"}>
-        Back
+        {t.back}
       </button>
     </section>
   );

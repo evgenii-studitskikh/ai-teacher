@@ -1,10 +1,18 @@
-// The languages the app can actually teach in. This is a closed union, not a
-// string, on purpose: every supported language needs a greeting the child hears
-// as the very first thing the agent says (see LANGUAGES in lib/prompt.ts). When
-// it was a bare `string`, the language dropdown and the greeting had no
-// relationship, so the agent greeted a Russian child in English. Adding a
-// language here without giving it a greeting is now a compile error.
-export type Language = "en" | "ru" | "es" | "de";
+// The languages the app can teach AND display in. This is a closed union
+// derived from one const list, on purpose: every supported language needs a
+// greeting the child hears as the very first thing the agent says (see
+// LANGUAGES in lib/prompt.ts) and a full UI translation (see STRINGS in
+// lib/i18n.ts). When it was a bare `string`, the language dropdown and the
+// greeting had no relationship, so the agent greeted a Russian child in
+// English. Adding a code here without giving it both is now a compile error.
+export const LANGUAGE_CODES = ["en", "ru", "es", "de", "he", "tl", "uk"] as const;
+export type Language = (typeof LANGUAGE_CODES)[number];
+
+// Narrows a bare string to the union — for values read back from storage or
+// a <select>, the two places a cast would otherwise creep in.
+export function isLanguage(value: unknown): value is Language {
+  return typeof value === "string" && (LANGUAGE_CODES as readonly string[]).includes(value);
+}
 
 export type SessionConfig = {
   agentName: string;

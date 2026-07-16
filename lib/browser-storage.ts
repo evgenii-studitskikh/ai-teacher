@@ -1,5 +1,6 @@
 // lib/browser-storage.ts
-import type { SavedSession, SessionConfig, SessionSummary } from "./types";
+import type { Language, SavedSession, SessionConfig, SessionSummary } from "./types";
+import { isLanguage } from "./types";
 
 // Everything the parent's device remembers. There is no server-side store any
 // more: Vercel's filesystem is read-only, and putting the child's transcripts
@@ -12,6 +13,7 @@ import type { SavedSession, SessionConfig, SessionSummary } from "./types";
 
 const PROFILE_PREFIX = "ai-teacher:profile:";
 const SESSION_PREFIX = "ai-teacher:session:";
+const LANGUAGE_KEY = "ai-teacher:language";
 
 // A store that behaves as if storage exists but is entirely blocked: reads
 // see it as empty (so the app opens exactly as it would on a brand-new
@@ -88,6 +90,26 @@ export function loadProfile(childName: string, store: Storage = defaultStore()):
   } catch {
     return null;
   }
+}
+
+// The one global, per-device setting: the language the app teaches AND
+// displays in. It is deliberately NOT part of the per-child profile — see
+// docs/superpowers/specs/2026-07-16-global-language-setting-design.md.
+// The read degrades to null (the caller falls back to English); the write is
+// allowed to throw like every other write in this file — the caller
+// (LanguageProvider) treats persistence as best-effort and catches it.
+export function loadLanguage(store: Storage = defaultStore()): Language | null {
+  let raw: string | null;
+  try {
+    raw = store.getItem(LANGUAGE_KEY);
+  } catch {
+    return null;
+  }
+  return isLanguage(raw) ? raw : null;
+}
+
+export function saveLanguage(language: Language, store: Storage = defaultStore()): void {
+  store.setItem(LANGUAGE_KEY, language);
 }
 
 function keysWithPrefix(prefix: string, store: Storage): string[] {

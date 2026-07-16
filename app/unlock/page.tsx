@@ -2,6 +2,8 @@
 
 import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
+import Header from "../components/Header";
+import { useLanguage } from "../components/LanguageProvider";
 import styles from "./Unlock.module.css";
 
 export default function UnlockPage() {
@@ -10,6 +12,7 @@ export default function UnlockPage() {
   const [submitting, setSubmitting] = useState(false);
   const router = useRouter();
   const formId = useId();
+  const { t } = useLanguage();
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -23,13 +26,13 @@ export default function UnlockPage() {
       });
       if (!res.ok) {
         const data: { error?: string } = await res.json().catch(() => ({}));
-        setError(data.error ?? "That is not the passcode.");
+        setError(data.error ?? t.wrongPasscode);
         setSubmitting(false);
         return;
       }
       router.replace("/");
     } catch {
-      setError("Could not reach the server. Check your connection and try again.");
+      setError(t.unlockNetworkError);
       setSubmitting(false);
     }
   }
@@ -37,7 +40,7 @@ export default function UnlockPage() {
   return (
     <main className={styles.shell}>
       <div className={styles.inner}>
-        <h1 className={styles.title}>AI Teacher</h1>
+        <Header />
         <div className={styles.card}>
           <form onSubmit={submit} className={styles.form}>
             {error && (
@@ -46,7 +49,7 @@ export default function UnlockPage() {
               </p>
             )}
             <div className={styles.field}>
-              <label htmlFor={`${formId}-passcode`}>Passcode</label>
+              <label htmlFor={`${formId}-passcode`}>{t.passcodeLabel}</label>
               <input
                 id={`${formId}-passcode`}
                 type="password"
@@ -57,7 +60,7 @@ export default function UnlockPage() {
               />
             </div>
             <button type="submit" className={styles.submit} disabled={submitting || !passcode}>
-              Unlock
+              {t.unlockBtn}
             </button>
           </form>
         </div>

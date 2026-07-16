@@ -91,4 +91,16 @@ describe("buildSummaryPrompt framing", () => {
     expect(p).toContain("Buzz Lightyear");
     expect(p).toMatch(/play|played/i);
   });
+
+  it("tells Claude to write the summary in the session's language", () => {
+    const ru = { ...validSession, config: { ...config, language: "ru" as const } };
+    expect(buildSummaryPrompt(ru, "child: hi")).toContain("Russian");
+
+    const ruToy = { ...ru, config: { ...ru.config, toy, toyMode: "pov" as const } };
+    expect(buildSummaryPrompt(ruToy, "child: hi")).toContain("Russian");
+
+    // And the default English session says English, so the instruction is
+    // always present rather than only for "foreign" languages.
+    expect(buildSummaryPrompt(validSession, "child: hi")).toContain("English");
+  });
 });

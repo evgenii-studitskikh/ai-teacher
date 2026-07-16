@@ -3,6 +3,7 @@
 import { useState } from "react";
 import ConfigForm from "./components/ConfigForm";
 import EndView from "./components/EndView";
+import Header from "./components/Header";
 import SessionView from "./components/SessionView";
 import ModePicker from "./components/ModePicker";
 import ToyScan from "./components/ToyScan";
@@ -68,7 +69,7 @@ export default function Page() {
   return (
     <main className={styles.shell}>
       <div className={styles.inner}>
-        <h1 className={styles.title}>AI Teacher</h1>
+        <Header />
         {body}
       </div>
     </main>

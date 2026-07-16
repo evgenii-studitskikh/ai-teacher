@@ -16,7 +16,7 @@
   margin: 0;
 }
 .detail {
-  text-align: left;
+  text-align: start;
   width: 100%;
   display: grid;
   gap: 4px;

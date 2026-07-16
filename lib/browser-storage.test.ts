@@ -4,7 +4,9 @@ import {
   attachSummary,
   listProfiles,
   loadLatestSummary,
+  loadLanguage,
   loadProfile,
+  saveLanguage,
   saveProfile,
   saveSession,
 } from "./browser-storage";
@@ -295,5 +297,32 @@ describe("defaultStore fallback (window.localStorage itself throws on access)", 
 
   it("saveProfile() still throws when window.localStorage itself throws", () => {
     expect(() => saveProfile(config)).toThrow();
+  });
+});
+
+describe("the global language setting", () => {
+  it("roundtrips a saved language", () => {
+    const store = fakeStore();
+    saveLanguage("uk", store);
+    expect(loadLanguage(store)).toBe("uk");
+  });
+
+  it("returns null when nothing is saved yet", () => {
+    expect(loadLanguage(fakeStore())).toBeNull();
+  });
+
+  it("returns null for a stored value that is not a supported language", () => {
+    // Corruption, or a profile written by a future/rolled-back version.
+    const store = fakeStore();
+    store.setItem("ai-teacher:language", "xx");
+    expect(loadLanguage(store)).toBeNull();
+  });
+
+  it("degrades to null when storage is blocked", () => {
+    expect(loadLanguage(throwingStore())).toBeNull();
+  });
+
+  it("lets a failed write throw — the caller decides best-effort", () => {
+    expect(() => saveLanguage("en", throwingStore())).toThrow();
   });
 });

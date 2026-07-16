@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import type { SavedSession, SessionSummary } from "../../../lib/types";
+import { languageName } from "../../../lib/prompt";
 
 // The server is stateless: it takes a finished transcript and returns a
 // summary, nothing more. Persistence lives entirely in the browser now (see
@@ -45,7 +46,9 @@ what fell flat or frustrated them, nextFocus = an idea for next time.
 
 For transcriptQuality, judge whether the child's turns look like real speech that
 was understood correctly, or like garbled nonsense. If speech recognition clearly
-failed, mark it "poor".`;
+failed, mark it "poor".
+
+Write every field in ${languageName(config.language)} — it is the language the parent reads.`;
   }
 
   return `You are helping a parent understand how their child's lesson went.
@@ -65,7 +68,9 @@ with — "counts 1 to 5 confidently", not "did well". If they lost interest, say
 
 For transcriptQuality, judge whether the child's turns look like real speech that
 was understood correctly, or like garbled nonsense. If speech recognition clearly
-failed to understand them, mark it "poor" — this is how the parent finds out.`;
+failed to understand them, mark it "poor" — this is how the parent finds out.
+
+Write every field in ${languageName(config.language)} — it is the language the parent reads.`;
 }
 
 export async function POST(request: Request) {

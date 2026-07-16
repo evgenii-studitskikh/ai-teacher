@@ -157,7 +157,7 @@ describe("no gendered pronouns anywhere in what the agent is told", () => {
 // I'm Robo. Are you ready to play?" out loud, while the speech recogniser is
 // already listening for Russian.)
 describe("the greeting is in the child's language", () => {
-  const LANGUAGES: Language[] = ["en", "ru", "es", "de"];
+  const LANGUAGES: Language[] = ["en", "ru", "es", "de", "he", "tl", "uk"];
 
   it("greets in English when the language is English", () => {
     expect(buildFirstMessage({ ...base, language: "en" })).toBe("Hi Mia! I'm Robo. Are you ready to play?");
@@ -176,6 +176,22 @@ describe("the greeting is in the child's language", () => {
   it("greets in Spanish and German too", () => {
     expect(buildFirstMessage({ ...base, language: "es" })).toContain("Hola");
     expect(buildFirstMessage({ ...base, language: "de" })).toContain("Hallo");
+  });
+
+  it("greets in Hebrew, Tagalog and Ukrainian too", () => {
+    // Hebrew: Hebrew script present, and no Latin outside the names.
+    const he = buildFirstMessage({ ...base, language: "he" });
+    expect(he).toMatch(/[֐-׿]/);
+    expect(he.replace("Mia", "").replace("Robo", "")).not.toMatch(/[A-Za-z]/);
+
+    // Tagalog is written in Latin script.
+    const tl = buildFirstMessage({ ...base, language: "tl" });
+    expect(tl).toContain("Maglaro");
+
+    // Ukrainian: Cyrillic present, and no Latin outside the names.
+    const uk = buildFirstMessage({ ...base, language: "uk" });
+    expect(uk).toMatch(/Привіт/);
+    expect(uk.replace("Mia", "").replace("Robo", "")).not.toMatch(/[A-Za-z]/);
   });
 
   // The override canary compares the agent's first spoken turn against this
@@ -198,6 +214,13 @@ describe("the greeting is in the child's language", () => {
     expect(ru).not.toMatch(/готов/i);
     const es = buildFirstMessage({ ...base, language: "es" });
     expect(es).not.toMatch(/list[oa]/i);
+    // Hebrew inflects both "ready" (מוכן/מוכנה) and the "come play"
+    // imperative (בוא/בואי) for gender; the greeting must use neither.
+    const he = buildFirstMessage({ ...base, language: "he" });
+    expect(he).not.toMatch(/מוכנ|בוא/);
+    // Ukrainian: "готовий/готова" would pick a gender, like Russian's готов.
+    const uk = buildFirstMessage({ ...base, language: "uk" });
+    expect(uk).not.toMatch(/готов/i);
   });
 });
 
@@ -205,6 +228,9 @@ describe("buildPrompt states the language", () => {
   it("tells the agent which language to speak", () => {
     expect(buildPrompt({ ...base, language: "ru" }, null)).toContain("Russian");
     expect(buildPrompt({ ...base, language: "de" }, null)).toContain("German");
+    expect(buildPrompt({ ...base, language: "he" }, null)).toContain("Hebrew");
+    expect(buildPrompt({ ...base, language: "tl" }, null)).toContain("Tagalog");
+    expect(buildPrompt({ ...base, language: "uk" }, null)).toContain("Ukrainian");
   });
 });
 

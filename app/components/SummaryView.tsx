@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { attachSummary } from "../../lib/browser-storage";
 import type { SavedSession, SessionSummary } from "../../lib/types";
 import styles from "./SummaryView.module.css";
+import { useLanguage } from "./LanguageProvider";
 
 // An EMPTY list is a result, not an absence — and on the "Confident with" row
 // it is the most actionable signal the whole report can carry: the child
@@ -49,21 +50,33 @@ type Props = {
 type SummarizeResponse = { summary?: SessionSummary | null; error?: string };
 
 export default function SummaryView({ session, sessionId, onFinish }: Props) {
+  const { t } = useLanguage();
   const [summary, setSummary] = useState<SessionSummary | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // A stored string would freeze its language at the moment the error
+  // happened, so this is a discriminated union instead (mirrors ConfigForm's
+  // voicesError): "server" carries the message our own /api/summarize route
+  // returned (English, from our own code, shown verbatim — or empty when the
+  // route gave no summary and no message, in which case the render falls
+  // back to a translated string), "network" means fetch() itself rejected
+  // and is always rendered from t at render time.
+  const [error, setError] = useState<{ kind: "server"; message: string } | { kind: "network" } | null>(
+    null,
+  );
   const [loading, setLoading] = useState(false);
   // Set only when a summary DID come back and IS on screen, but attaching it
   // to the saved record failed (quota exceeded, storage disabled mid-session,
   // ...). This is deliberately not `error`: the summary below is real, Claude
   // ran and answered, and the parent must see it. It is also not nothing —
   // the next lesson starts without this one's history — so it gets its own
-  // quiet, proportionate note rather than either silence or an alarm.
-  const [persistNote, setPersistNote] = useState<string | null>(null);
+  // quiet, proportionate note rather than either silence or an alarm. Boolean
+  // rather than a stored string for the same reason `error` is a union now:
+  // the note text is translated at render time, not frozen at failure time.
+  const [persistFailed, setPersistFailed] = useState(false);
 
   const summarize = useCallback(async () => {
     setLoading(true);
     setError(null);
-    setPersistNote(null);
+    setPersistFailed(false);
     try {
       const res = await fetch("/api/summarize", {
         method: "POST",
@@ -90,26 +103,27 @@ export default function SummaryView({ session, sessionId, onFinish }: Props) {
         try {
           attachSummary(sessionId, data.summary);
         } catch {
-          setPersistNote(
-            "This report isn't saved on this device, so the next lesson will start without it. " +
-              "The lesson itself is fine — nothing about tonight's session was lost.",
-          );
+          setPersistFailed(true);
         }
       } else {
-        setError(data.error ?? "Could not write the summary.");
+        setError({ kind: "server", message: data.error ?? "" });
       }
     } catch {
       // fetch() itself rejected — offline, dev server restarted mid-request,
       // etc. Unlike before, this genuinely costs nothing but the summary: the
       // transcript was written to this device before this component was ever
       // mounted, and `sessionId` above is the receipt for it.
-      setError("Could not reach the server.");
+      setError({ kind: "network" });
     } finally {
       // Always runs, on every path (success, JSON error payload, unparsable
       // body, or a rejected fetch) — this is what guarantees the parent
       // never gets stuck on the loading state.
       setLoading(false);
     }
+    // Deliberately NOT [session, sessionId, t]: t is read only at render
+    // time (see the error/persistFailed render blocks below), so this
+    // effect fires exactly once per mount regardless of language, same as
+    // before the restructuring.
   }, [session, sessionId]);
 
   // Fire the summarize request exactly once per mount. Next.js App Router
@@ -129,26 +143,23 @@ export default function SummaryView({ session, sessionId, onFinish }: Props) {
     summarize();
   }, [summarize]);
 
-  if (loading) return <p className={styles.status}>Writing the summary…</p>;
+  if (loading) return <p className={styles.status}>{t.writingSummary}</p>;
 
   if (error) {
     return (
       <section className={styles.screen}>
         <p className={styles.error} role="alert">
-          {error}
+          {error.kind === "network" ? t.couldNotReachServer : error.message || t.couldNotWriteSummary}
         </p>
         {/* True by construction: see the `sessionId` prop above. */}
-        <p className={styles.note}>
-          The transcript is saved on this device. Only the summary is missing, and the next session
-          will simply start without one.
-        </p>
+        <p className={styles.note}>{t.summaryMissingNote}</p>
         <div className={styles.actionsBar}>
           <div className={styles.actions}>
             <button className={styles.secondaryBtn} onClick={summarize}>
-              Retry
+              {t.retry}
             </button>
             <button className={styles.primaryBtn} onClick={onFinish}>
-              Done
+              {t.done}
             </button>
           </div>
         </div>
@@ -162,34 +173,35 @@ export default function SummaryView({ session, sessionId, onFinish }: Props) {
     <section className={styles.screen}>
       {summary.transcriptQuality === "poor" && (
         <p className={styles.asrAlarm} role="alert">
-          Heads up: speech recognition struggled to understand {session.config.childName} this
-          session. If this keeps happening, the transcripts are worth reading yourself.
+          {t.asrAlarm(session.config.childName)}
         </p>
       )}
 
       {/* role="status", not "alert": this is not a failure the parent needs
           to act on, just a proportionate heads-up that continuity is what's
           at stake, not the lesson itself. */}
-      {persistNote && (
+      {persistFailed && (
         <p className={styles.note} role="status">
-          {persistNote}
+          {t.persistNote}
         </p>
       )}
 
       <article className={styles.card}>
-        <h2 className={styles.heading}>How it went</h2>
+        <h2 className={styles.heading}>{t.howItWent}</h2>
         <p className={styles.lead}>{summary.whatWeDid}</p>
 
         <div className={styles.row}>
-          <span className={styles.label}>Engagement</span>
-          <span className={`${styles.pill} ${styles[summary.engagement]}`}>{summary.engagement}</span>
+          <span className={styles.label}>{t.engagementLabel}</span>
+          <span className={`${styles.pill} ${styles[summary.engagement]}`}>
+            {t.engagement[summary.engagement]}
+          </span>
         </div>
 
-        <Chips title="Confident with" items={summary.grasped} tone="good" />
-        <Chips title="Still tricky" items={summary.struggled} tone="accent" />
+        <Chips title={t.confidentWith} items={summary.grasped} tone="good" />
+        <Chips title={t.stillTricky} items={summary.struggled} tone="accent" />
 
         <div className={styles.next}>
-          <span className={styles.label}>Next time</span>
+          <span className={styles.label}>{t.nextTime}</span>
           <p>{summary.nextFocus}</p>
         </div>
       </article>
@@ -197,7 +209,7 @@ export default function SummaryView({ session, sessionId, onFinish }: Props) {
       <div className={styles.actionsBar}>
         <div className={styles.actions}>
           <button className={styles.primaryBtn} onClick={onFinish}>
-            Done
+            {t.done}
           </button>
         </div>
       </div>

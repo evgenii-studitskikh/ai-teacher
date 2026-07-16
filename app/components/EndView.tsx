@@ -5,6 +5,7 @@ import SummaryView from "./SummaryView";
 import { saveSession } from "../../lib/browser-storage";
 import type { SavedSession } from "../../lib/types";
 import styles from "./SummaryView.module.css";
+import { useLanguage } from "./LanguageProvider";
 
 type Props = {
   session: Omit<SavedSession, "summary">;
@@ -42,6 +43,7 @@ type SaveState =
 // save/failed/retry shape still applies, just around a try/catch instead of
 // a fetch.
 export default function EndView({ session, onFinish }: Props) {
+  const { t } = useLanguage();
   const [state, setState] = useState<SaveState>({ status: "saving" });
 
   const save = useCallback(() => {
@@ -54,10 +56,10 @@ export default function EndView({ session, onFinish }: Props) {
       // mode) — this is precisely the case the old code lied about.
       setState({
         status: "failed",
-        message: e instanceof Error ? e.message : "The browser refused to save the transcript.",
+        message: e instanceof Error ? e.message : t.browserRefusedSave,
       });
     }
-  }, [session]);
+  }, [session, t]);
 
   // Fire the save exactly once per mount. React StrictMode double-invokes
   // mount effects in dev; a ref checked synchronously (not state, which would
@@ -70,7 +72,7 @@ export default function EndView({ session, onFinish }: Props) {
     save();
   }, [save]);
 
-  if (state.status === "saving") return <p className={styles.status}>Saving the transcript…</p>;
+  if (state.status === "saving") return <p className={styles.status}>{t.savingTranscript}</p>;
 
   if (state.status === "failed") {
     return (
@@ -84,20 +86,16 @@ export default function EndView({ session, onFinish }: Props) {
             unchanged, and .note keeps its own plain colour so the paragraph
             still reads as instruction rather than as more alarm. */}
         <div className={styles.error} role="alert">
-          <h2>The transcript is NOT saved</h2>
+          <h2>{t.transcriptNotSaved}</h2>
           <p>{state.message}</p>
-          <p className={styles.note}>
-            This lesson is still in this browser tab and nowhere else. Do not close or reload the tab
-            — that would lose it for good. If your browser is in private mode or storage is full, fix
-            that, then retry.
-          </p>
+          <p className={styles.note}>{t.doNotCloseTab}</p>
         </div>
         {/* Deliberately no "Done" button here: the only thing this screen can
             offer while the session is unsaved is a way to save it. */}
         <div className={styles.actionsBar}>
           <div className={styles.actions}>
             <button className={styles.primaryBtn} onClick={save}>
-              Retry saving
+              {t.retrySaving}
             </button>
           </div>
         </div>

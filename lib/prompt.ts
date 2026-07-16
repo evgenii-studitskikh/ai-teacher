@@ -65,10 +65,6 @@ export function languageName(language: Language): string {
   return LANGUAGES[language].name;
 }
 
-export const LANGUAGE_OPTIONS: { value: Language; label: string }[] = (
-  Object.keys(LANGUAGES) as Language[]
-).map((value) => ({ value, label: LANGUAGES[value].name }));
-
 // Nothing in this file may assume the child's gender. The app deliberately has
 // no gender field (asking for one buys nothing and is one more thing to get
 // wrong), and every string here is either spoken to the child or steers what

@@ -1,4 +1,4 @@
-import type { Language } from "./types";
+import type { Language, SessionConfig } from "./types";
 
 // Every string the parent sees, in every language the app teaches in. Typed
 // as a Record over the Language union for the same reason the greetings are
@@ -58,10 +58,13 @@ export type UIStrings = {
   helpMePlayTitle: string;
   helpMePlayDesc: (toyName: string) => string;
   povIntro: (toyName: string) => string;
-  // Human names for SessionConfig keys, for the profileFilled note.
-  // childName and language are deliberately absent: neither is ever restored
-  // from a profile (see ConfigForm's loadSaved).
-  fieldNames: Record<"agentName" | "voiceId" | "childAge" | "goal" | "directives" | "minutes", string>;
+  // Human names for the SessionConfig keys a saved profile can fill in, for
+  // the profileFilled note. Derived from SessionConfig so adding a config
+  // field without a label here is a compile error. childName and language
+  // are deliberately absent: neither is ever restored from a profile (see
+  // ConfigForm's loadSaved); toy/toyMode are session-ephemeral, never in the
+  // note.
+  fieldNames: Record<Exclude<keyof SessionConfig, "childName" | "language" | "toy" | "toyMode">, string>;
 
   // SessionView
   gettingReady: string;

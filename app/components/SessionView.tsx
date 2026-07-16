@@ -195,10 +195,11 @@ function SessionInner({ config, onDone }: Props) {
       agent: {
         prompt: { prompt: systemPrompt },
         firstMessage: buildFirstMessage(config),
-        // ConfigForm restricts `language` to a handful of ISO codes ("en",
-        // "ru", "es", "de") that are all valid members of ElevenLabs'
-        // Language union; the cast just narrows our app-level `string` to
-        // that union, it does not change what value is actually sent.
+        // The app-level `Language` union (LANGUAGE_CODES in lib/types.ts,
+        // chosen via the header picker) contains only valid members of
+        // ElevenLabs' Language union; the cast just narrows our app-level
+        // string to that union, it does not change what value is actually
+        // sent.
         language: config.language as Language,
       },
       tts: { voiceId: config.voiceId },

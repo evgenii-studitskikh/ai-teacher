@@ -1,5 +1,5 @@
 // lib/browser-storage.ts
-import type { Language, SavedSession, SessionConfig, SessionSummary } from "./types";
+import type { Kid, Language, LastStart, SavedSession, SessionConfig, SessionSummary, Teacher } from "./types";
 import { isLanguage } from "./types";
 
 // Everything the parent's device remembers. There is no server-side store any
@@ -190,4 +190,70 @@ export function loadLatestSummary(childName: string, store: Storage = defaultSto
     // a locale collator is not guaranteed to sort it byte-for-byte in order.
     .sort((a, b) => (a.endedAt < b.endedAt ? -1 : a.endedAt > b.endedAt ? 1 : 0));
   return mine.length > 0 ? (mine[mine.length - 1].summary as SessionSummary) : null;
+}
+
+const KID_PREFIX = "ai-teacher:kid:";
+const TEACHER_PREFIX = "ai-teacher:teacher:";
+const LAST_START_PREFIX = "ai-teacher:last-start:";
+
+// Shared list-read for the entity stores: same degrade rules as listProfiles —
+// a blocked store lists nothing, one corrupt entry must not cost the rest.
+function listEntities<T extends { createdAt: string }>(prefix: string, store: Storage): T[] {
+  const items: T[] = [];
+  for (const key of keysWithPrefix(prefix, store)) {
+    try {
+      items.push(JSON.parse(store.getItem(key) ?? "") as T);
+    } catch {
+      // One unreadable entry must not cost the parent every other one.
+    }
+  }
+  // Machine-generated ISO timestamps: plain comparison, not localeCompare
+  // (same reasoning as loadLatestSummary).
+  return items.sort((a, b) => (a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0));
+}
+
+export function saveKid(kid: Kid, store: Storage = defaultStore()): void {
+  store.setItem(KID_PREFIX + kid.id, JSON.stringify(kid));
+}
+
+export function listKids(store: Storage = defaultStore()): Kid[] {
+  return listEntities<Kid>(KID_PREFIX, store);
+}
+
+export function deleteKid(id: string, store: Storage = defaultStore()): void {
+  store.removeItem(KID_PREFIX + id);
+  // Their pre-fill goes with them; saved sessions stay (independently keyed,
+  // historical record).
+  store.removeItem(LAST_START_PREFIX + id);
+}
+
+export function saveTeacher(teacher: Teacher, store: Storage = defaultStore()): void {
+  store.setItem(TEACHER_PREFIX + teacher.id, JSON.stringify(teacher));
+}
+
+export function listTeachers(store: Storage = defaultStore()): Teacher[] {
+  return listEntities<Teacher>(TEACHER_PREFIX, store);
+}
+
+export function deleteTeacher(id: string, store: Storage = defaultStore()): void {
+  store.removeItem(TEACHER_PREFIX + id);
+}
+
+export function saveLastStart(kidId: string, last: LastStart, store: Storage = defaultStore()): void {
+  store.setItem(LAST_START_PREFIX + kidId, JSON.stringify(last));
+}
+
+export function loadLastStart(kidId: string, store: Storage = defaultStore()): LastStart | null {
+  let raw: string | null;
+  try {
+    raw = store.getItem(LAST_START_PREFIX + kidId);
+  } catch {
+    return null;
+  }
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as LastStart;
+  } catch {
+    return null;
+  }
 }

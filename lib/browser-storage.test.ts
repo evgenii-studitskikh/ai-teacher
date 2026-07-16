@@ -2,15 +2,23 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   attachSummary,
+  deleteKid,
+  deleteTeacher,
+  listKids,
   listProfiles,
+  listTeachers,
+  loadLastStart,
   loadLatestSummary,
   loadLanguage,
   loadProfile,
+  saveKid,
   saveLanguage,
+  saveLastStart,
   saveProfile,
   saveSession,
+  saveTeacher,
 } from "./browser-storage";
-import type { SavedSession, SessionConfig, SessionSummary } from "./types";
+import type { Kid, LastStart, SavedSession, SessionConfig, SessionSummary, Teacher } from "./types";
 
 // A `Storage` that lives in memory. The real one is the browser's, which
 // vitest's node environment does not have — and mocking it this way is also
@@ -324,5 +332,91 @@ describe("the global language setting", () => {
 
   it("lets a failed write throw — the caller decides best-effort", () => {
     expect(() => saveLanguage("en", throwingStore())).toThrow();
+  });
+});
+
+const kid: Kid = { id: "k1", name: "Mia", age: 5, createdAt: "2026-07-16T10:00:00.000Z" };
+const teacher: Teacher = {
+  id: "t1",
+  kind: "custom",
+  name: "Robo",
+  voiceId: "v1",
+  personality: "warm and silly",
+  createdAt: "2026-07-16T10:00:00.000Z",
+};
+const lastStart: LastStart = { teacherId: "t1", goal: "Count to 10", directives: "", minutes: 10 };
+
+describe("kids", () => {
+  it("round-trips a kid", () => {
+    saveKid(kid, store);
+    expect(listKids(store)).toEqual([kid]);
+  });
+
+  it("lists kids sorted by createdAt", () => {
+    saveKid({ ...kid, id: "k2", name: "Аня", createdAt: "2026-07-17T10:00:00.000Z" }, store);
+    saveKid(kid, store);
+    expect(listKids(store).map((k) => k.id)).toEqual(["k1", "k2"]);
+  });
+
+  it("deletes a kid and their last-start together", () => {
+    saveKid(kid, store);
+    saveLastStart(kid.id, lastStart, store);
+    deleteKid(kid.id, store);
+    expect(listKids(store)).toEqual([]);
+    expect(loadLastStart(kid.id, store)).toBeNull();
+  });
+
+  it("survives a corrupt kid entry", () => {
+    saveKid(kid, store);
+    store.setItem("ai-teacher:kid:broken", "{not json");
+    expect(listKids(store).map((k) => k.id)).toEqual(["k1"]);
+  });
+
+  it("listKids degrades to [] when storage is blocked", () => {
+    expect(listKids(throwingStore())).toEqual([]);
+  });
+
+  it("saveKid still throws when storage is blocked", () => {
+    expect(() => saveKid(kid, throwingStore())).toThrow();
+  });
+});
+
+describe("teachers", () => {
+  it("round-trips a teacher", () => {
+    saveTeacher(teacher, store);
+    expect(listTeachers(store)).toEqual([teacher]);
+  });
+
+  it("updates in place when saved under the same id", () => {
+    saveTeacher(teacher, store);
+    saveTeacher({ ...teacher, name: "Robo 2" }, store);
+    expect(listTeachers(store)).toHaveLength(1);
+    expect(listTeachers(store)[0].name).toBe("Robo 2");
+  });
+
+  it("deletes a teacher", () => {
+    saveTeacher(teacher, store);
+    deleteTeacher(teacher.id, store);
+    expect(listTeachers(store)).toEqual([]);
+  });
+
+  it("survives a corrupt teacher entry", () => {
+    saveTeacher(teacher, store);
+    store.setItem("ai-teacher:teacher:broken", "{not json");
+    expect(listTeachers(store).map((t) => t.id)).toEqual(["t1"]);
+  });
+});
+
+describe("last-start", () => {
+  it("round-trips a last-start per kid", () => {
+    saveLastStart("k1", lastStart, store);
+    expect(loadLastStart("k1", store)).toEqual(lastStart);
+    expect(loadLastStart("k2", store)).toBeNull();
+  });
+
+  it("degrades to null on corrupt data or blocked storage", () => {
+    store.setItem("ai-teacher:last-start:k1", "{not json");
+    expect(loadLastStart("k1", store)).toBeNull();
+    expect(loadLastStart("k1", throwingStore())).toBeNull();
   });
 });

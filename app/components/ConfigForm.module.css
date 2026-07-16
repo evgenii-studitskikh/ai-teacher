@@ -45,7 +45,7 @@
   background: var(--c-surface);
   border-radius: var(--r-lg);
   box-shadow: var(--shadow);
-  text-align: left;
+  text-align: start;
   transition: transform 0.15s var(--ease), box-shadow 0.15s var(--ease);
 }
 .card:hover {
